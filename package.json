@@ -1,0 +1,20 @@
+{
+  "name": "truaxiom-tip",
+  "version": "0.0.1",
+  "private": true,
+  "description": "TruaXiom Intelligence Platform — business intelligence operating system and Mission Control workspace.",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @truaxiom/mission-control",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
