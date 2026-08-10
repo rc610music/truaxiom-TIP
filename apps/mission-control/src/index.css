@@ -1,0 +1,269 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #080b12;
+  color: #f7f7fb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(79, 70, 229, 0.22), transparent 32rem),
+    radial-gradient(circle at bottom right, rgba(20, 184, 166, 0.16), transparent 28rem),
+    #080b12;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.tip-shell {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(5, 8, 14, 0.72);
+  backdrop-filter: blur(24px);
+  padding: 24px;
+}
+
+.brand-lockup {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 34px;
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ffffff, #9ca3ff);
+  color: #060812;
+  font-weight: 900;
+  letter-spacing: -0.08em;
+}
+
+.brand-lockup strong,
+.brand-lockup small {
+  display: block;
+}
+
+.brand-lockup small {
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+nav {
+  display: grid;
+  gap: 8px;
+}
+
+nav button {
+  border: 0;
+  border-radius: 14px;
+  padding: 12px 14px;
+  color: #cbd5e1;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+nav button.active,
+nav button:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.workspace {
+  padding: 32px;
+  overflow: auto;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(2rem, 4vw, 4.5rem);
+  letter-spacing: -0.07em;
+}
+
+h2 {
+  font-size: clamp(1.5rem, 3vw, 3rem);
+  letter-spacing: -0.05em;
+  line-height: 0.98;
+  margin-bottom: 16px;
+}
+
+p {
+  color: #a7b0c0;
+  line-height: 1.6;
+}
+
+.eyebrow {
+  color: #8b5cf6;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  margin-bottom: 8px;
+}
+
+.command-bar {
+  min-width: 360px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 14px 18px;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1.8fr repeat(3, minmax(140px, 0.6fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.panel {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 28px;
+  background: rgba(15, 23, 42, 0.58);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+  padding: 24px;
+}
+
+.panel.large {
+  min-height: 230px;
+}
+
+.panel.metric {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.panel.metric span {
+  font-size: clamp(2.5rem, 5vw, 5rem);
+  font-weight: 900;
+  letter-spacing: -0.09em;
+}
+
+.panel-heading {
+  margin-bottom: 18px;
+}
+
+.panel-heading strong {
+  font-size: 1.15rem;
+}
+
+.stack {
+  display: grid;
+  gap: 12px;
+}
+
+.row-card,
+.focus-card,
+.activity-item {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.row-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.row-card span {
+  align-self: flex-start;
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.16);
+  color: #d8b4fe;
+  padding: 6px 10px;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.focus-card h3 {
+  margin-bottom: 8px;
+}
+
+.focus-card small {
+  display: block;
+  margin-top: 16px;
+  color: #67e8f9;
+}
+
+.status-list {
+  display: grid;
+  gap: 10px;
+  padding-left: 20px;
+  color: #dbeafe;
+}
+
+.activity-item strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+@media (max-width: 980px) {
+  .tip-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .topbar,
+  .hero-grid,
+  .content-grid {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .command-bar {
+    min-width: 0;
+    width: 100%;
+  }
+}
