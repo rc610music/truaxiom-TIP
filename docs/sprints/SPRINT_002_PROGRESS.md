@@ -107,6 +107,86 @@ Created initial Supabase/PostgreSQL-compatible schema draft:
 
 ---
 
+## Completed in Content Ingestion Pass
+
+### Content Map Types
+
+Extended shared platform types with:
+
+- `ContentMap`
+- `ContentMapItem`
+- `ContentCluster`
+- `ContentGap`
+- `ContentIntent`
+- `ContentItemType`
+- `ContentLifecycleStatus`
+- `ContentGapType`
+- expanded graph node and edge relationships for content intelligence
+
+### RootWork Content Map
+
+Added the first static RootWork content map with:
+
+- RootWork Home
+- Wisdom / Blog Library
+- RootWork Practices
+- RootWork Resources
+- Root Types System
+- RootWork Premium
+
+Added initial RootWork content clusters:
+
+- RootWork Foundation
+- Wisdom Library
+- Practice Engine
+
+Added initial RootWork content gaps:
+
+- crawler-backed article inventory missing,
+- practice taxonomy not structured yet,
+- Premium conversion path needs mapping.
+
+### Ingestion Runner
+
+Added an ingestion planning implementation that can:
+
+- create queued ingestion runs,
+- plan crawl/extract/classify/map steps,
+- complete a run from a content map,
+- convert mapped content items into knowledge objects.
+
+This is still static/read-only and does not crawl live websites yet.
+
+### Mission Control Content Intelligence
+
+Updated Mission Control to show:
+
+- RootWork content item count,
+- open content gaps,
+- mapped/review/cluster/coverage metrics,
+- RootWork content map panel,
+- priority gaps panel,
+- planned ingestion run panel,
+- expanded graph nodes for content map items and gaps.
+
+### Database
+
+Added `database/002_content_ingestion.sql` with tables for:
+
+- ingestion_sources,
+- ingestion_runs,
+- content_maps,
+- content_map_sources,
+- content_map_items,
+- content_clusters,
+- content_gaps.
+
+### Documentation
+
+Added `docs/integrations/ROOTWORK_CONTENT_MAP_SCHEMA.md` documenting the map schema, objects, lifecycle, ingestion loop, Sprint 002 boundary, and next crawler adapter contract.
+
+---
+
 ## Current Sprint 002 Status
 
 Sprint 002 has moved TIP from architecture-only into an initial buildable platform skeleton.
@@ -130,6 +210,10 @@ Mission Control now represents:
 - tasks,
 - recommendations,
 - RootWork ingestion sections,
+- RootWork content map,
+- content clusters,
+- content gaps,
+- planned ingestion run,
 - activity,
 - and context readiness.
 
@@ -137,12 +221,12 @@ Mission Control now represents:
 
 ## Next Build Targets
 
-1. Add content map schema for RootWork.
-2. Add ingestion run model implementation.
-3. Add first static RootWork content inventory format.
-4. Add data access abstraction layer.
-5. Add Mission Control view-state model.
-6. Prepare first run/test instructions once the app can be locally verified.
+1. Add data access abstraction layer.
+2. Add Mission Control view-state model.
+3. Add crawler adapter contract.
+4. Add extracted content record schema.
+5. Add first mock crawler fixture for RootWork.
+6. Prepare first run/test instructions once local install can be verified.
 
 ---
 
@@ -150,6 +234,6 @@ Mission Control now represents:
 
 The current build is intentionally static and seed-data driven.
 
-The purpose is not intelligence yet.
+The purpose is not full intelligence yet.
 
-The purpose is to create the structural surface where intelligence will be connected.
+The purpose is to create the structural surface where intelligence will be connected, reviewed, and eventually automated.
