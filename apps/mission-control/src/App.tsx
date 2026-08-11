@@ -4,13 +4,17 @@ import {
   buildOrganizationContextPacket,
   describeContextReadiness,
   getActiveRecommendations,
+  getContentMapSummary,
+  getPriorityContentGaps,
   ingestionSources,
   knowledgeObjects,
   modules,
   organization,
+  planIngestionRun,
   products,
   projects,
   recommendations,
+  rootWorkContentMap,
   rootWorkContentSections,
   sortRecommendationsForMissionControl,
   sortTasksForMissionControl,
@@ -18,12 +22,20 @@ import {
 } from "@truaxiom/core";
 import type { GraphEdge, GraphNode } from "@truaxiom/types";
 
+const rootWorkSource = ingestionSources.find((source) => source.id === "SRC-ROOTWORK-WEBSITE");
+const plannedRootWorkRun = rootWorkSource ? planIngestionRun(rootWorkSource) : null;
+const contentMapSummary = getContentMapSummary(rootWorkContentMap);
+const priorityGaps = getPriorityContentGaps(rootWorkContentMap);
+
 const nodes: GraphNode[] = [
   { id: "NODE-ORG-TRUAXIOM", entityType: "organization", entityId: organization.id, label: organization.name },
   ...products.map((product) => ({ id: `NODE-${product.id}`, entityType: "product" as const, entityId: product.id, label: product.name })),
   ...projects.map((project) => ({ id: `NODE-${project.id}`, entityType: "project" as const, entityId: project.id, label: project.name })),
   ...recommendations.map((recommendation) => ({ id: `NODE-${recommendation.id}`, entityType: "recommendation" as const, entityId: recommendation.id, label: recommendation.name })),
-  ...tasks.map((task) => ({ id: `NODE-${task.id}`, entityType: "task" as const, entityId: task.id, label: task.name }))
+  ...tasks.map((task) => ({ id: `NODE-${task.id}`, entityType: "task" as const, entityId: task.id, label: task.name })),
+  { id: `NODE-${rootWorkContentMap.id}`, entityType: "content_map", entityId: rootWorkContentMap.id, label: "RootWork Content Map" },
+  ...rootWorkContentMap.items.map((item) => ({ id: `NODE-${item.id}`, entityType: "content_item" as const, entityId: item.id, label: item.title })),
+  ...rootWorkContentMap.gaps.map((gap) => ({ id: `NODE-${gap.id}`, entityType: "content_gap" as const, entityId: gap.id, label: gap.title }))
 ];
 
 const edges: GraphEdge[] = [
@@ -46,6 +58,26 @@ const edges: GraphEdge[] = [
       source: "seed",
       createdAt: recommendation.createdAt
     }))
+  ),
+  ...rootWorkContentMap.items.map((item) => ({
+    id: `EDGE-${rootWorkContentMap.id}-${item.id}`,
+    fromNodeId: `NODE-${rootWorkContentMap.id}`,
+    toNodeId: `NODE-${item.id}`,
+    relationship: "contains" as const,
+    confidence: item.confidence,
+    source: "rootWorkContentMap",
+    createdAt: rootWorkContentMap.generatedAt
+  })),
+  ...rootWorkContentMap.gaps.flatMap((gap) =>
+    gap.relatedItemIds.map((itemId) => ({
+      id: `EDGE-${gap.id}-${itemId}`,
+      fromNodeId: `NODE-${gap.id}`,
+      toNodeId: `NODE-${itemId}`,
+      relationship: "has_gap" as const,
+      confidence: "medium" as const,
+      source: "rootWorkContentMap",
+      createdAt: rootWorkContentMap.generatedAt
+    }))
   )
 ];
 
@@ -66,7 +98,7 @@ const readiness = describeContextReadiness(contextPacket);
 const sortedTasks = sortTasksForMissionControl(contextPacket.openTasks);
 const sortedRecommendations = sortRecommendationsForMissionControl(getActiveRecommendations(recommendations));
 
-const navItems = ["Home", "Products", "Projects", "Tasks", "Recommendations", "Agents", "Modules", "Knowledge", "Activity", "Settings"];
+const navItems = ["Home", "Products", "Projects", "Content Map", "Ingestion", "Tasks", "Recommendations", "Agents", "Modules", "Knowledge", "Activity", "Settings"];
 
 export function App() {
   return (
@@ -104,13 +136,13 @@ export function App() {
           </article>
 
           <article className="panel metric">
-            <span>{contextPacket.activeProducts.length}</span>
-            <p>Active Products</p>
+            <span>{contentMapSummary.totalItems}</span>
+            <p>RootWork Items</p>
           </article>
 
           <article className="panel metric">
-            <span>{contextPacket.openTasks.length}</span>
-            <p>Open Tasks</p>
+            <span>{contentMapSummary.openGaps}</span>
+            <p>Open Gaps</p>
           </article>
 
           <article className="panel metric">
@@ -127,17 +159,60 @@ export function App() {
         <section className="content-grid">
           <article className="panel">
             <div className="panel-heading">
-              <p className="eyebrow">Products</p>
-              <strong>Portfolio Registry</strong>
+              <p className="eyebrow">RootWork</p>
+              <strong>Content Map</strong>
+            </div>
+            <div className="mini-metrics">
+              <span>{contentMapSummary.mappedItems} mapped</span>
+              <span>{contentMapSummary.needsReview} review</span>
+              <span>{contentMapSummary.clusters} clusters</span>
+              <span>{contentMapSummary.averageCoverageScore}% coverage</span>
             </div>
             <div className="stack">
-              {products.map((product) => (
-                <div className="row-card" key={product.id}>
+              {rootWorkContentMap.items.map((item) => (
+                <div className="row-card" key={item.id}>
                   <div>
-                    <strong>{product.name}</strong>
-                    <p>{product.description}</p>
+                    <strong>{item.title}</strong>
+                    <p>{item.primaryTopic}</p>
                   </div>
-                  <span>{product.stage}</span>
+                  <span>{item.lifecycleStatus}</span>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="panel">
+            <div className="panel-heading">
+              <p className="eyebrow">Content Intelligence</p>
+              <strong>Priority Gaps</strong>
+            </div>
+            <div className="stack">
+              {priorityGaps.map((gap) => (
+                <div className="focus-card" key={gap.id}>
+                  <h3>{gap.title}</h3>
+                  <p>{gap.description}</p>
+                  <small>{gap.priority} priority · {gap.gapType}</small>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="panel">
+            <div className="panel-heading">
+              <p className="eyebrow">Ingestion</p>
+              <strong>Planned RootWork Run</strong>
+            </div>
+            {plannedRootWorkRun ? (
+              <div className="focus-card">
+                <h3>{plannedRootWorkRun.run.id}</h3>
+                <p>Source: {plannedRootWorkRun.source.url}</p>
+                <small>{plannedRootWorkRun.run.status} · {plannedRootWorkRun.steps.length} planned steps</small>
+              </div>
+            ) : <p>No RootWork ingestion source found.</p>}
+            <div className="stack compact-stack">
+              {plannedRootWorkRun?.steps.slice(0, 4).map((step) => (
+                <div className="activity-item" key={step}>
+                  <strong>{step}</strong>
                 </div>
               ))}
             </div>
@@ -193,7 +268,7 @@ export function App() {
                 </div>
               ))}
             </div>
-            <p className="fine-print">Source: {ingestionSources[0]?.url}</p>
+            <p className="fine-print">Source: {rootWorkSource?.url}</p>
           </article>
 
           <article className="panel">
