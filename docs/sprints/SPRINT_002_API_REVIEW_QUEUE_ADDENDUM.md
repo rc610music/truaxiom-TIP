@@ -181,6 +181,33 @@ Neon is the recommended temporary hosted bridge if Supabase billing stays blocke
 
 ---
 
+### API Persistence Runtime
+
+Added the actual server-side persistence runtime:
+
+```text
+apps/api/src/persistence.ts
+```
+
+The runtime now selects review-decision persistence at API startup:
+
+```text
+TIP_PERSISTENCE_PROVIDER=local-memory | neon | postgres | supabase
+```
+
+Runtime behavior:
+
+- `local-memory` stays default and requires no credentials,
+- `neon` uses `NEON_DATABASE_URL`,
+- `postgres` uses `DATABASE_URL`,
+- `supabase` can use `SUPABASE_DB_URL`,
+- API health reports active mode and persistence label,
+- server shutdown closes the Postgres pool safely.
+
+This means the same approve/reject/defer loop can remain local today and become durable later by adding one connection string.
+
+---
+
 ### Persistence Preparation
 
 Added:
@@ -210,6 +237,7 @@ docs/deployment/SUPABASE_BOOTSTRAP_CHECKLIST.md
 docs/development/LOCAL_REVIEW_DECISION_LOOP.md
 docs/development/REVIEW_DECISION_REPOSITORY.md
 docs/development/POSTGRES_NEON_BRIDGE.md
+docs/development/API_PERSISTENCE_RUNTIME.md
 ```
 
 These documents keep the project moving while preserving a clean path back to Supabase.
@@ -223,7 +251,7 @@ Continue with the local API bridge until:
 1. the API smoke test passes consistently,
 2. Mission Control reads all major panels through API routes,
 3. the review queue can approve/reject/defer items locally,
-4. the Postgres decision adapter receives a runtime query executor,
+4. the API persistence runtime is tested in local-memory mode,
 5. Supabase billing is cleared or Neon is selected as the temporary hosted Postgres bridge.
 
 ---
