@@ -6,6 +6,7 @@ const requiredPaths = [
   "tsconfig.base.json",
   "apps/mission-control/package.json",
   "apps/mission-control/src/App.tsx",
+  "apps/mission-control/src/apiClient.ts",
   "apps/mission-control/src/index.css",
   "apps/api/package.json",
   "apps/api/src/server.ts",
@@ -28,7 +29,8 @@ const requiredPaths = [
   "docs/sprints/SPRINT_002_Core_Platform_Draft.md",
   "docs/sprints/SPRINT_002_PROGRESS.md",
   "docs/development/SERVER_SIDE_SETUP.md",
-  "docs/architecture/API-0001_API_Gateway.md"
+  "docs/architecture/API-0001_API_Gateway.md",
+  "scripts/smoke-api.mjs"
 ];
 
 const missing = requiredPaths.filter((path) => !existsSync(path));
