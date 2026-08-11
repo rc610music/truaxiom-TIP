@@ -35,6 +35,9 @@ jobs:
         with:
           node-version: 20
 
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
       - name: Install dependencies
         run: npm install
 
@@ -43,6 +46,13 @@ jobs:
           GITHUB_PAGES: "true"
           VITE_TIP_API_BASE_URL: "http://127.0.0.1:4310"
         run: npm run build:mission-control
+
+      - name: Upload downloadable static preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: mission-control-static-preview
+          path: apps/mission-control/dist
+          if-no-files-found: error
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
