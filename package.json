@@ -14,6 +14,7 @@
     "dev:full": "echo Run API and Mission Control in separate terminals: npm run dev:api && npm run dev",
     "build": "npm run build --workspaces --if-present",
     "build:api": "npm run build --workspace @truaxiom/api",
+    "build:mission-control": "npm run build --workspace @truaxiom/mission-control",
     "start:api": "npm run start --workspace @truaxiom/api",
     "wait:api": "node scripts/wait-for-api.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
