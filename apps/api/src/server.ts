@@ -10,10 +10,29 @@ function sendJson(response: import("node:http").ServerResponse, status: number, 
     "Content-Type": "application/json; charset=utf-8",
     "Content-Length": Buffer.byteLength(payload),
     "Access-Control-Allow-Origin": origin && isOriginAllowed(origin, config) ? origin : config.corsOrigins[0] ?? "*",
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization"
   });
   response.end(payload);
+}
+
+async function readJsonBody(request: import("node:http").IncomingMessage): Promise<unknown> {
+  if (request.method !== "POST" && request.method !== "PUT" && request.method !== "PATCH") return undefined;
+
+  const chunks: Buffer[] = [];
+
+  for await (const chunk of request) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+
+  const raw = Buffer.concat(chunks).toString("utf-8").trim();
+  if (!raw) return undefined;
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return { __invalidJson: raw };
+  }
 }
 
 const server = createServer(async (request, response) => {
@@ -30,10 +49,18 @@ const server = createServer(async (request, response) => {
   }
 
   const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
+  const body = await readJsonBody(request);
+
+  if (typeof body === "object" && body !== null && "__invalidJson" in body) {
+    sendJson(response, 400, { error: "Invalid JSON request body" }, origin);
+    return;
+  }
+
   const result = gateway.handle({
     method: request.method ?? "GET",
     path: url.pathname,
-    query: Object.fromEntries(url.searchParams.entries())
+    query: Object.fromEntries(url.searchParams.entries()),
+    body
   });
 
   sendJson(response, result.status, result.body, origin);
