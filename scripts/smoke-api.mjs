@@ -22,13 +22,51 @@ async function assertEndpoint(path) {
   return { path, body };
 }
 
+async function assertDecisionEndpoint(reviewQueue) {
+  const firstReviewItem = reviewQueue?.queue?.items?.find((item) => item.status === "needs_review") ?? reviewQueue?.queue?.items?.[0];
+
+  if (!firstReviewItem?.id) {
+    throw new Error("Review queue smoke test could not find an item to decide.");
+  }
+
+  const response = await fetch(`${apiBaseUrl}/v1/review-queue/decisions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      itemId: firstReviewItem.id,
+      action: "defer",
+      decidedBy: "smoke-test",
+      note: "Smoke test simulated decision."
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`/v1/review-queue/decisions failed with ${response.status} ${response.statusText}`);
+  }
+
+  const body = await response.json();
+  if (body?.decision?.resultingStatus !== "deferred") {
+    throw new Error("Review decision smoke test did not return deferred status.");
+  }
+
+  return body;
+}
+
 try {
   console.log(`Running TIP API smoke test against ${apiBaseUrl}`);
 
+  let reviewQueue;
+
   for (const endpoint of requiredEndpoints) {
-    await assertEndpoint(endpoint);
+    const result = await assertEndpoint(endpoint);
+    if (endpoint === "/v1/review-queue") reviewQueue = result.body;
     console.log(`✓ ${endpoint}`);
   }
+
+  await assertDecisionEndpoint(reviewQueue);
+  console.log("✓ POST /v1/review-queue/decisions");
 
   console.log("TIP API smoke test passed.");
 } catch (error) {
