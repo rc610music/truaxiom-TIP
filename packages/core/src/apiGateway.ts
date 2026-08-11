@@ -1,0 +1,133 @@
+import type { DataCollectionName, TipDataRepository } from "@truaxiom/types";
+import { buildOrganizationContextPacket, describeContextReadiness } from "./organizationalBrain";
+import { createTipBootstrapSnapshot } from "./bootstrapSnapshot";
+import { createInMemoryRepository, describeRepositorySnapshot } from "./dataAccess";
+import { createMockCrawlResult, summarizeCrawlResult } from "./crawlerAdapter";
+import { ingestionSources } from "./seed";
+import { getContentMapSummary, getPriorityContentGaps, rootWorkContentMap } from "./rootWorkContentMap";
+import { createContentMapCandidatesFromExtractedRecords, proposeContentGapsFromCandidates } from "./contentMapCandidates";
+import { getActiveRecommendations } from "./recommendations";
+
+export interface ApiGatewayResponse<T = unknown> {
+  status: number;
+  body: T;
+}
+
+export interface ApiGatewayRequest {
+  method: string;
+  path: string;
+  query?: Record<string, string | undefined>;
+  body?: unknown;
+}
+
+export interface ApiGatewayOptions {
+  repository?: TipDataRepository;
+}
+
+export function createTipApiGateway(options: ApiGatewayOptions = {}) {
+  const repository = options.repository ?? createInMemoryRepository(createTipBootstrapSnapshot());
+
+  function json<T>(status: number, body: T): ApiGatewayResponse<T> {
+    return { status, body };
+  }
+
+  return {
+    repository,
+
+    handle(request: ApiGatewayRequest): ApiGatewayResponse {
+      if (request.method !== "GET") {
+        return json(405, { error: "Method not allowed", method: request.method });
+      }
+
+      if (request.path === "/health") {
+        const snapshot = repository.snapshot();
+        return json(200, {
+          status: "ok",
+          service: "TIP API Gateway",
+          mode: "local-static",
+          summary: describeRepositorySnapshot(snapshot)
+        });
+      }
+
+      if (request.path === "/v1/snapshot") {
+        return json(200, repository.snapshot());
+      }
+
+      if (request.path.startsWith("/v1/collections/")) {
+        const collection = request.path.replace("/v1/collections/", "") as DataCollectionName;
+        const result = repository.list(collection);
+        return result.ok ? json(200, result.data) : json(404, { error: result.error });
+      }
+
+      if (request.path === "/v1/context/organization") {
+        const snapshot = repository.snapshot();
+        const organization = snapshot.organizations[0];
+        if (!organization) return json(404, { error: "No organization record available" });
+
+        const packet = buildOrganizationContextPacket({
+          organization,
+          products: snapshot.products,
+          projects: snapshot.projects,
+          agents: snapshot.agents,
+          modules: snapshot.modules,
+          knowledgeObjects: snapshot.knowledgeObjects,
+          tasks: snapshot.tasks,
+          recommendations: snapshot.recommendations,
+          activity: snapshot.activity,
+          graph: {
+            nodes: snapshot.graphNodes,
+            edges: snapshot.graphEdges,
+            knowledgeObjects: snapshot.knowledgeObjects
+          }
+        });
+
+        return json(200, {
+          packet,
+          readiness: describeContextReadiness(packet)
+        });
+      }
+
+      if (request.path === "/v1/rootwork/content-map") {
+        return json(200, {
+          contentMap: rootWorkContentMap,
+          summary: getContentMapSummary(rootWorkContentMap),
+          priorityGaps: getPriorityContentGaps(rootWorkContentMap)
+        });
+      }
+
+      if (request.path === "/v1/rootwork/mock-crawl") {
+        const source = ingestionSources.find((item) => item.id === "SRC-ROOTWORK-WEBSITE");
+        if (!source) return json(404, { error: "RootWork ingestion source not found" });
+        const result = createMockCrawlResult(source);
+        const candidates = createContentMapCandidatesFromExtractedRecords(result.records);
+        const proposedGaps = proposeContentGapsFromCandidates(candidates, "PROD-ROOTWORK");
+
+        return json(200, {
+          crawl: result,
+          summary: summarizeCrawlResult(result),
+          candidates,
+          proposedGaps
+        });
+      }
+
+      if (request.path === "/v1/recommendations/active") {
+        const snapshot = repository.snapshot();
+        return json(200, getActiveRecommendations(snapshot.recommendations));
+      }
+
+      return json(404, {
+        error: "Route not found",
+        path: request.path,
+        availableRoutes: [
+          "GET /health",
+          "GET /v1/snapshot",
+          "GET /v1/collections/:collection",
+          "GET /v1/context/organization",
+          "GET /v1/rootwork/content-map",
+          "GET /v1/rootwork/mock-crawl",
+          "GET /v1/recommendations/active"
+        ]
+      });
+    }
+  };
+}
