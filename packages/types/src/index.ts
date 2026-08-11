@@ -27,7 +27,17 @@ export type RelationshipType =
   | "references"
   | "creates"
   | "updates"
-  | "recommends";
+  | "recommends"
+  | "covers"
+  | "has_gap"
+  | "clusters_with"
+  | "canonical_for";
+
+export type ContentItemType = "page" | "article" | "resource" | "practice" | "quiz" | "offer" | "podcast" | "video" | "social" | "email";
+export type ContentLifecycleStatus = "discovered" | "mapped" | "needs_review" | "approved" | "stale" | "gap" | "planned";
+export type ContentIntent = "awareness" | "education" | "conversion" | "retention" | "trust" | "community" | "support";
+export type ContentGapType = "missing_topic" | "thin_content" | "stale_content" | "broken_path" | "weak_conversion" | "seo_opportunity" | "brand_alignment";
+export type IngestionRunStatus = "queued" | "running" | "completed" | "failed";
 
 export interface BaseEntity {
   id: string;
@@ -85,7 +95,22 @@ export interface KnowledgeObject extends BaseEntity {
 
 export interface GraphNode {
   id: string;
-  entityType: "organization" | "product" | "project" | "module" | "agent" | "knowledge" | "task" | "decision" | "activity" | "recommendation" | "source";
+  entityType:
+    | "organization"
+    | "product"
+    | "project"
+    | "module"
+    | "agent"
+    | "knowledge"
+    | "task"
+    | "decision"
+    | "activity"
+    | "recommendation"
+    | "source"
+    | "content_map"
+    | "content_item"
+    | "content_gap"
+    | "ingestion_run";
   entityId: string;
   label: string;
   metadata?: Record<string, unknown>;
@@ -137,7 +162,7 @@ export interface Decision extends BaseEntity {
 
 export interface ActivityEvent {
   id: string;
-  type: "created" | "updated" | "recommended" | "approved" | "published" | "blocked" | "completed";
+  type: "created" | "updated" | "recommended" | "approved" | "published" | "blocked" | "completed" | "ingested";
   label: string;
   description?: string;
   entityId?: string;
@@ -161,10 +186,75 @@ export interface IngestionRun {
   sourceId: string;
   startedAt: string;
   completedAt?: string;
-  status: "queued" | "running" | "completed" | "failed";
+  status: IngestionRunStatus;
   discoveredItems: number;
   createdKnowledgeObjects: number;
   notes?: string[];
+}
+
+export interface ContentMapItem {
+  id: string;
+  productId: string;
+  sourceId?: string;
+  title: string;
+  type: ContentItemType;
+  url?: string;
+  section: string;
+  intent: ContentIntent;
+  lifecycleStatus: ContentLifecycleStatus;
+  primaryTopic: string;
+  secondaryTopics: string[];
+  audience?: string;
+  funnelStage?: "top" | "middle" | "bottom" | "post-conversion";
+  canonicalKnowledgeObjectId?: string;
+  confidence: ConfidenceStatus;
+  lastObservedAt?: string;
+  freshness: KnowledgeObject["freshness"];
+  notes?: string[];
+  tags?: string[];
+}
+
+export interface ContentCluster {
+  id: string;
+  productId: string;
+  name: string;
+  description: string;
+  topic: string;
+  itemIds: string[];
+  targetAudience?: string;
+  strategicRole: "pillar" | "supporting" | "conversion" | "retention" | "trust";
+  coverageScore: number;
+}
+
+export interface ContentGap {
+  id: string;
+  productId: string;
+  gapType: ContentGapType;
+  title: string;
+  description: string;
+  priority: Priority;
+  relatedItemIds: string[];
+  recommendedAction: string;
+  expectedImpact: string;
+  status: "open" | "planned" | "in_progress" | "resolved";
+}
+
+export interface ContentMap {
+  id: string;
+  productId: string;
+  sourceIds: string[];
+  generatedAt: string;
+  updatedAt: string;
+  items: ContentMapItem[];
+  clusters: ContentCluster[];
+  gaps: ContentGap[];
+  summary: {
+    totalItems: number;
+    mappedItems: number;
+    needsReview: number;
+    openGaps: number;
+    staleItems: number;
+  };
 }
 
 export interface OrganizationContextPacket {
