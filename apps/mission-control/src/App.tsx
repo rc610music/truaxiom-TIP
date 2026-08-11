@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   activity as staticActivity,
   buildMissionControlViewState,
@@ -23,10 +23,12 @@ import {
   knowledgeObjects
 } from "@truaxiom/core";
 import {
+  decideReviewQueueItem,
   getApiBaseUrl,
   loadMissionControlApiBridge,
   summarizeSnapshot,
-  type MissionControlApiBridge
+  type MissionControlApiBridge,
+  type ReviewDecisionAction
 } from "./apiClient";
 
 type LooseRecord = Record<string, any>;
@@ -69,6 +71,14 @@ const fallbackMissionViewState = buildMissionControlViewState({
 
 export function App() {
   const [apiBridge, setApiBridge] = useState<MissionControlApiBridge>({ connected: false });
+  const [decisionMessage, setDecisionMessage] = useState<string>("No review action taken yet.");
+  const [activeDecisionItemId, setActiveDecisionItemId] = useState<string | null>(null);
+
+  const refreshApiBridge = useCallback(async () => {
+    const bridge = await loadMissionControlApiBridge();
+    setApiBridge(bridge);
+    return bridge;
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -82,6 +92,37 @@ export function App() {
       active = false;
     };
   }, []);
+
+  const handleReviewDecision = useCallback(async (itemId: string, action: ReviewDecisionAction) => {
+    setActiveDecisionItemId(itemId);
+    setDecisionMessage(`Sending ${action} decision for ${itemId}...`);
+
+    try {
+      const result = await decideReviewQueueItem({
+        itemId,
+        action,
+        note: `Mission Control local ${action} action.`
+      });
+
+      setApiBridge((current) => ({
+        ...current,
+        connected: true,
+        reviewQueue: {
+          queue: result.queue,
+          summary: result.summary,
+          mode: result.mode,
+          persistence: result.persistence
+        }
+      }));
+
+      setDecisionMessage(`${result.item?.title ?? itemId} marked ${result.decision?.resultingStatus ?? action} in local simulated mode.`);
+      await refreshApiBridge();
+    } catch (error) {
+      setDecisionMessage(error instanceof Error ? error.message : "Review decision failed.");
+    } finally {
+      setActiveDecisionItemId(null);
+    }
+  }, [refreshApiBridge]);
 
   const view = useMemo(() => {
     const snapshot = apiBridge.snapshot ?? {};
@@ -131,12 +172,16 @@ export function App() {
       proposedGaps,
       reviewItems,
       reviewSummary,
+      reviewMode: apiBridge.reviewQueue?.mode ?? "static-fallback",
+      reviewPersistence: apiBridge.reviewQueue?.persistence ?? "none",
       readiness: apiBridge.organizationContext?.readiness?.length ? apiBridge.organizationContext.readiness : ["Static fallback is active until the local API is running."],
       navItems: fallbackMissionViewState.navItems,
       systemReadiness: fallbackMissionViewState.systemReadiness,
       snapshotSummary: apiBridge.snapshot ? summarizeSnapshot(apiBridge.snapshot) : []
     };
   }, [apiBridge]);
+
+  const reviewItemsForDisplay = (view.reviewItems.length ? view.reviewItems : view.priorityGaps).slice(0, 5);
 
   return (
     <main className="tip-shell">
@@ -218,19 +263,32 @@ export function App() {
             <div className="mini-metrics">
               <span>{valueOr<number>(view.reviewSummary.total, view.reviewItems.length)} total</span>
               <span>{valueOr<number>(view.reviewSummary.needsReview, view.reviewItems.length)} needs review</span>
-              <span>{valueOr<number>(view.reviewSummary.gaps, view.proposedGaps.length)} gaps</span>
-              <span>{view.candidates.length} candidates</span>
+              <span>{valueOr<number>(view.reviewSummary.approved, 0)} approved</span>
+              <span>{valueOr<number>(view.reviewSummary.deferred, 0)} deferred</span>
+              <span>{view.reviewMode}</span>
+              <span>{view.reviewPersistence}</span>
             </div>
+            <div className="decision-note">{decisionMessage}</div>
             <div className="stack">
-              {(view.reviewItems.length ? view.reviewItems : view.priorityGaps).slice(0, 5).map((item) => (
-                <div className="row-card" key={item.id ?? item.title}>
-                  <div>
-                    <strong>{item.title}</strong>
-                    <p>{item.description ?? item.recommendedAction}</p>
+              {reviewItemsForDisplay.map((item) => {
+                const itemId = String(item.id ?? item.title);
+                const isActionable = apiBridge.connected && item.status !== "approved" && item.status !== "rejected";
+
+                return (
+                  <div className="review-card" key={itemId}>
+                    <div className="review-card-main">
+                      <strong>{item.title}</strong>
+                      <p>{item.description ?? item.recommendedAction}</p>
+                      <small>{item.status ?? item.priority ?? "review"}</small>
+                    </div>
+                    <div className="decision-actions">
+                      <button className="decision-button" disabled={!isActionable || activeDecisionItemId === itemId} onClick={() => handleReviewDecision(itemId, "approve")}>Approve</button>
+                      <button className="decision-button" disabled={!isActionable || activeDecisionItemId === itemId} onClick={() => handleReviewDecision(itemId, "defer")}>Defer</button>
+                      <button className="decision-button danger" disabled={!isActionable || activeDecisionItemId === itemId} onClick={() => handleReviewDecision(itemId, "reject")}>Reject</button>
+                    </div>
                   </div>
-                  <span>{item.status ?? item.priority ?? "review"}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </article>
 
