@@ -1,8 +1,14 @@
 import { createServer } from "node:http";
 import { createTipApiGateway, describeServerReadiness, isOriginAllowed, readTipServerConfig } from "@truaxiom/core";
+import { createApiPersistenceRuntime } from "./persistence";
 
 const config = readTipServerConfig();
-const gateway = createTipApiGateway();
+const persistence = createApiPersistenceRuntime(config);
+const gateway = createTipApiGateway({
+  reviewDecisionRepository: persistence.reviewDecisionRepository,
+  modeLabel: config.apiMode,
+  persistenceLabel: persistence.persistenceLabel
+});
 
 function sendJson(response: import("node:http").ServerResponse, status: number, body: unknown, origin?: string) {
   const payload = JSON.stringify(body, null, 2);
@@ -66,9 +72,20 @@ const server = createServer(async (request, response) => {
   sendJson(response, result.status, result.body, origin);
 });
 
+async function shutdown() {
+  await persistence.dispose();
+  server.close(() => process.exit(0));
+}
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
+
 server.listen(config.port, config.host, () => {
   console.log(`TIP API listening on http://${config.host}:${config.port}`);
   for (const note of describeServerReadiness(config)) {
+    console.log(`- ${note}`);
+  }
+  for (const note of persistence.readinessNotes) {
     console.log(`- ${note}`);
   }
 });
