@@ -1,0 +1,80 @@
+{
+  "requestId": "CRAWL-SRC-ROOTWORK-WEBSITE-MOCK-001",
+  "sourceId": "SRC-ROOTWORK-WEBSITE",
+  "status": "completed",
+  "startedAt": "2026-08-10T22:37:00-04:00",
+  "completedAt": "2026-08-10T22:37:00-04:00",
+  "records": [
+    {
+      "id": "EXT-ROOTWORK-HOME",
+      "sourceId": "SRC-ROOTWORK-WEBSITE",
+      "productId": "PROD-ROOTWORK",
+      "url": "https://restoreyour.life/",
+      "title": "RootWork Home",
+      "format": "text",
+      "excerpt": "RootWork introduces the wellness brand, its philosophy, and the invitation into grounded personal growth.",
+      "detectedType": "page",
+      "detectedIntent": "education",
+      "detectedTopics": ["rootwork", "personal growth", "healing"],
+      "status": "mapped",
+      "httpStatus": 200,
+      "canonicalUrl": "https://restoreyour.life/",
+      "discoveredAt": "2026-08-10T22:37:00-04:00"
+    },
+    {
+      "id": "EXT-ROOTWORK-WISDOM",
+      "sourceId": "SRC-ROOTWORK-WEBSITE",
+      "productId": "PROD-ROOTWORK",
+      "url": "https://restoreyour.life/wisdom",
+      "title": "Wisdom Library",
+      "format": "text",
+      "excerpt": "The wisdom section should hold articles, reflections, practices, and deeper educational material.",
+      "detectedType": "article",
+      "detectedIntent": "education",
+      "detectedTopics": ["wisdom", "education", "self development"],
+      "status": "mapped",
+      "httpStatus": 200,
+      "canonicalUrl": "https://restoreyour.life/wisdom",
+      "discoveredAt": "2026-08-10T22:37:00-04:00"
+    },
+    {
+      "id": "EXT-ROOTWORK-PRACTICES",
+      "sourceId": "SRC-ROOTWORK-WEBSITE",
+      "productId": "PROD-ROOTWORK",
+      "url": "https://restoreyour.life/practices",
+      "title": "RootWork Practices",
+      "format": "text",
+      "excerpt": "Practice content supports rituals, grounding exercises, journaling, breathwork, and repeatable growth habits.",
+      "detectedType": "page",
+      "detectedIntent": "education",
+      "detectedTopics": ["practices", "rituals", "journaling", "grounding"],
+      "status": "mapped",
+      "httpStatus": 200,
+      "canonicalUrl": "https://restoreyour.life/practices",
+      "discoveredAt": "2026-08-10T22:37:00-04:00"
+    },
+    {
+      "id": "EXT-ROOTWORK-PREMIUM",
+      "sourceId": "SRC-ROOTWORK-WEBSITE",
+      "productId": "PROD-ROOTWORK",
+      "url": "https://restoreyour.life/premium",
+      "title": "RootWork Premium",
+      "format": "text",
+      "excerpt": "Premium positions deeper access, membership value, and ongoing support for users ready to commit.",
+      "detectedType": "page",
+      "detectedIntent": "conversion",
+      "detectedTopics": ["premium", "membership", "conversion"],
+      "status": "mapped",
+      "httpStatus": 200,
+      "canonicalUrl": "https://restoreyour.life/premium",
+      "discoveredAt": "2026-08-10T22:37:00-04:00"
+    }
+  ],
+  "errors": [],
+  "summary": {
+    "requestedPaths": 4,
+    "fetchedRecords": 4,
+    "skippedRecords": 0,
+    "failedRecords": 0
+  }
+}
