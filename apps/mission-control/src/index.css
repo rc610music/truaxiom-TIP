@@ -192,6 +192,10 @@ p {
   gap: 12px;
 }
 
+.compact-stack {
+  margin-top: 12px;
+}
+
 .row-card,
 .focus-card,
 .activity-item {
@@ -227,6 +231,24 @@ p {
   display: block;
   margin-top: 16px;
   color: #67e8f9;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.mini-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -4px 0 16px;
+}
+
+.mini-metrics span {
+  border: 1px solid rgba(103, 232, 249, 0.18);
+  border-radius: 999px;
+  background: rgba(103, 232, 249, 0.08);
+  color: #bae6fd;
+  padding: 7px 10px;
+  font-size: 0.76rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
