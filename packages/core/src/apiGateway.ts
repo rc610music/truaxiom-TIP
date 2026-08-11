@@ -7,6 +7,7 @@ import { ingestionSources } from "./seed";
 import { getContentMapSummary, getPriorityContentGaps, rootWorkContentMap } from "./rootWorkContentMap";
 import { createContentMapCandidatesFromExtractedRecords, proposeContentGapsFromCandidates } from "./contentMapCandidates";
 import { getActiveRecommendations } from "./recommendations";
+import { buildReviewQueueForMissionControl, summarizeReviewQueue } from "./reviewQueue";
 
 export interface ApiGatewayResponse<T = unknown> {
   status: number;
@@ -24,11 +25,39 @@ export interface ApiGatewayOptions {
   repository?: TipDataRepository;
 }
 
+const availableRoutes = [
+  "GET /health",
+  "GET /v1/snapshot",
+  "GET /v1/collections/:collection",
+  "GET /v1/context/organization",
+  "GET /v1/rootwork/content-map",
+  "GET /v1/rootwork/mock-crawl",
+  "GET /v1/recommendations/active",
+  "GET /v1/review-queue"
+];
+
 export function createTipApiGateway(options: ApiGatewayOptions = {}) {
   const repository = options.repository ?? createInMemoryRepository(createTipBootstrapSnapshot());
 
   function json<T>(status: number, body: T): ApiGatewayResponse<T> {
     return { status, body };
+  }
+
+  function buildRootWorkCrawlPackage() {
+    const source = ingestionSources.find((item) => item.id === "SRC-ROOTWORK-WEBSITE");
+    if (!source) return null;
+
+    const crawl = createMockCrawlResult(source);
+    const candidates = createContentMapCandidatesFromExtractedRecords(crawl.records);
+    const proposedGaps = proposeContentGapsFromCandidates(candidates, "PROD-ROOTWORK");
+
+    return {
+      source,
+      crawl,
+      summary: summarizeCrawlResult(crawl),
+      candidates,
+      proposedGaps
+    };
   }
 
   return {
@@ -44,8 +73,11 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
         return json(200, {
           status: "ok",
           service: "TIP API Gateway",
+          environment: "local-static",
           mode: "local-static",
-          summary: describeRepositorySnapshot(snapshot)
+          timestamp: new Date().toISOString(),
+          summary: describeRepositorySnapshot(snapshot),
+          availableRoutes
         });
       }
 
@@ -96,18 +128,9 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
       }
 
       if (request.path === "/v1/rootwork/mock-crawl") {
-        const source = ingestionSources.find((item) => item.id === "SRC-ROOTWORK-WEBSITE");
-        if (!source) return json(404, { error: "RootWork ingestion source not found" });
-        const result = createMockCrawlResult(source);
-        const candidates = createContentMapCandidatesFromExtractedRecords(result.records);
-        const proposedGaps = proposeContentGapsFromCandidates(candidates, "PROD-ROOTWORK");
-
-        return json(200, {
-          crawl: result,
-          summary: summarizeCrawlResult(result),
-          candidates,
-          proposedGaps
-        });
+        const packageResult = buildRootWorkCrawlPackage();
+        if (!packageResult) return json(404, { error: "RootWork ingestion source not found" });
+        return json(200, packageResult);
       }
 
       if (request.path === "/v1/recommendations/active") {
@@ -115,18 +138,29 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
         return json(200, getActiveRecommendations(snapshot.recommendations));
       }
 
+      if (request.path === "/v1/review-queue") {
+        const snapshot = repository.snapshot();
+        const packageResult = buildRootWorkCrawlPackage();
+        if (!packageResult) return json(404, { error: "RootWork ingestion source not found" });
+
+        const queue = buildReviewQueueForMissionControl({
+          candidates: packageResult.candidates,
+          proposedGaps: packageResult.proposedGaps,
+          recommendations: snapshot.recommendations,
+          tasks: snapshot.tasks,
+          extractedRecords: packageResult.crawl.records
+        });
+
+        return json(200, {
+          queue,
+          summary: summarizeReviewQueue(queue)
+        });
+      }
+
       return json(404, {
         error: "Route not found",
         path: request.path,
-        availableRoutes: [
-          "GET /health",
-          "GET /v1/snapshot",
-          "GET /v1/collections/:collection",
-          "GET /v1/context/organization",
-          "GET /v1/rootwork/content-map",
-          "GET /v1/rootwork/mock-crawl",
-          "GET /v1/recommendations/active"
-        ]
+        availableRoutes
       });
     }
   };
