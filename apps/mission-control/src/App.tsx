@@ -1,7 +1,9 @@
 import {
   activity,
   agents,
+  buildMissionControlViewState,
   buildOrganizationContextPacket,
+  createMockCrawlResult,
   describeContextReadiness,
   getActiveRecommendations,
   getContentMapSummary,
@@ -18,12 +20,15 @@ import {
   rootWorkContentSections,
   sortRecommendationsForMissionControl,
   sortTasksForMissionControl,
+  summarizeCrawlResult,
   tasks
 } from "@truaxiom/core";
 import type { GraphEdge, GraphNode } from "@truaxiom/types";
 
 const rootWorkSource = ingestionSources.find((source) => source.id === "SRC-ROOTWORK-WEBSITE");
 const plannedRootWorkRun = rootWorkSource ? planIngestionRun(rootWorkSource) : null;
+const mockCrawlResult = rootWorkSource ? createMockCrawlResult(rootWorkSource) : null;
+const crawlSummary = mockCrawlResult ? summarizeCrawlResult(mockCrawlResult) : [];
 const contentMapSummary = getContentMapSummary(rootWorkContentMap);
 const priorityGaps = getPriorityContentGaps(rootWorkContentMap);
 
@@ -35,7 +40,8 @@ const nodes: GraphNode[] = [
   ...tasks.map((task) => ({ id: `NODE-${task.id}`, entityType: "task" as const, entityId: task.id, label: task.name })),
   { id: `NODE-${rootWorkContentMap.id}`, entityType: "content_map", entityId: rootWorkContentMap.id, label: "RootWork Content Map" },
   ...rootWorkContentMap.items.map((item) => ({ id: `NODE-${item.id}`, entityType: "content_item" as const, entityId: item.id, label: item.title })),
-  ...rootWorkContentMap.gaps.map((gap) => ({ id: `NODE-${gap.id}`, entityType: "content_gap" as const, entityId: gap.id, label: gap.title }))
+  ...rootWorkContentMap.gaps.map((gap) => ({ id: `NODE-${gap.id}`, entityType: "content_gap" as const, entityId: gap.id, label: gap.title })),
+  ...(mockCrawlResult?.records ?? []).map((record) => ({ id: `NODE-${record.id}`, entityType: "extracted_content" as const, entityId: record.id, label: record.title }))
 ];
 
 const edges: GraphEdge[] = [
@@ -78,7 +84,16 @@ const edges: GraphEdge[] = [
       source: "rootWorkContentMap",
       createdAt: rootWorkContentMap.generatedAt
     }))
-  )
+  ),
+  ...(mockCrawlResult?.records ?? []).map((record) => ({
+    id: `EDGE-${record.sourceId}-${record.id}`,
+    fromNodeId: `NODE-${rootWorkContentMap.id}`,
+    toNodeId: `NODE-${record.id}`,
+    relationship: "extracted_from" as const,
+    confidence: "medium" as const,
+    source: "mockCrawlerAdapter",
+    createdAt: record.discoveredAt
+  }))
 ];
 
 const contextPacket = buildOrganizationContextPacket({
@@ -94,11 +109,16 @@ const contextPacket = buildOrganizationContextPacket({
   graph: { nodes, edges, knowledgeObjects }
 });
 
+const missionViewState = buildMissionControlViewState({
+  context: contextPacket,
+  contentMap: rootWorkContentMap,
+  activeSprintId: "SPRINT-002"
+});
+
 const readiness = describeContextReadiness(contextPacket);
 const sortedTasks = sortTasksForMissionControl(contextPacket.openTasks);
 const sortedRecommendations = sortRecommendationsForMissionControl(getActiveRecommendations(recommendations));
-
-const navItems = ["Home", "Products", "Projects", "Content Map", "Ingestion", "Tasks", "Recommendations", "Agents", "Modules", "Knowledge", "Activity", "Settings"];
+const navItems = missionViewState.navItems;
 
 export function App() {
   return (
@@ -146,8 +166,8 @@ export function App() {
           </article>
 
           <article className="panel metric">
-            <span>{contextPacket.activeRecommendations.length}</span>
-            <p>Recommendations</p>
+            <span>{mockCrawlResult?.records.length ?? 0}</span>
+            <p>Extracted Records</p>
           </article>
 
           <article className="panel metric">
@@ -213,6 +233,45 @@ export function App() {
               {plannedRootWorkRun?.steps.slice(0, 4).map((step) => (
                 <div className="activity-item" key={step}>
                   <strong>{step}</strong>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="panel">
+            <div className="panel-heading">
+              <p className="eyebrow">Crawler Adapter</p>
+              <strong>Mock Extracted Records</strong>
+            </div>
+            <div className="mini-metrics">
+              {crawlSummary.map((note) => <span key={note}>{note}</span>)}
+            </div>
+            <div className="stack">
+              {mockCrawlResult?.records.map((record) => (
+                <div className="row-card" key={record.id}>
+                  <div>
+                    <strong>{record.title}</strong>
+                    <p>{record.excerpt}</p>
+                  </div>
+                  <span>{record.status}</span>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="panel">
+            <div className="panel-heading">
+              <p className="eyebrow">Platform Systems</p>
+              <strong>Readiness Stack</strong>
+            </div>
+            <div className="stack">
+              {missionViewState.systemReadiness.map((item) => (
+                <div className="row-card" key={item.system}>
+                  <div>
+                    <strong>{item.system}</strong>
+                    <p>{item.note}</p>
+                  </div>
+                  <span>{item.status}</span>
                 </div>
               ))}
             </div>
