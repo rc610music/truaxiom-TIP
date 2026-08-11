@@ -11,3 +11,6 @@ export * from "./crawlerAdapter";
 export * from "./missionControlViewState";
 export * from "./supabaseRepositoryAdapter";
 export * from "./contentMapCandidates";
+export * from "./liveCrawlerAdapter";
+export * from "./aiProviderAdapter";
+export * from "./recommendationToTask";
