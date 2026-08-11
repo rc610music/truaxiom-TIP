@@ -12,7 +12,9 @@
     "dev": "npm run dev --workspace @truaxiom/mission-control",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present"
+    "lint": "npm run lint --workspaces --if-present",
+    "check:structure": "node scripts/check-repo-structure.mjs",
+    "ci": "npm run check:structure && npm run typecheck"
   },
   "engines": {
     "node": ">=20.0.0"
