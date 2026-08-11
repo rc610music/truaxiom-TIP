@@ -1,0 +1,45 @@
+name: TIP API Smoke Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  api-smoke:
+    name: API loop smoke test
+    runs-on: ubuntu-latest
+
+    env:
+      TIP_ENV: test
+      TIP_API_MODE: local-static
+      TIP_PERSISTENCE_PROVIDER: local-memory
+      TIP_API_HOST: 127.0.0.1
+      TIP_API_PORT: 4310
+      TIP_API_BASE_URL: http://127.0.0.1:4310
+      TIP_CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      TIP_ENABLE_LIVE_CRAWLER: "false"
+      TIP_AI_PROVIDER: manual
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Validate repository structure
+        run: npm run check:structure
+
+      - name: Typecheck workspaces
+        run: npm run typecheck
+
+      - name: Run API loop smoke test
+        run: npm run test:api
