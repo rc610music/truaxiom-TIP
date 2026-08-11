@@ -1,153 +1,142 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  activity,
-  agents,
+  activity as staticActivity,
   buildMissionControlViewState,
   buildOrganizationContextPacket,
   createMockCrawlResult,
-  describeContextReadiness,
   getActiveRecommendations,
   getContentMapSummary,
   getPriorityContentGaps,
   ingestionSources,
-  knowledgeObjects,
   modules,
-  organization,
-  planIngestionRun,
-  products,
-  projects,
-  recommendations,
-  rootWorkContentMap,
+  organization as staticOrganization,
+  products as staticProducts,
+  projects as staticProjects,
+  recommendations as staticRecommendations,
+  rootWorkContentMap as staticRootWorkContentMap,
   rootWorkContentSections,
   sortRecommendationsForMissionControl,
   sortTasksForMissionControl,
   summarizeCrawlResult,
-  tasks
+  tasks as staticTasks,
+  agents,
+  knowledgeObjects
 } from "@truaxiom/core";
-import type { GraphEdge, GraphNode } from "@truaxiom/types";
-import { fetchApiHealth, fetchApiSnapshot, getApiBaseUrl, summarizeSnapshot, type ApiHealthResponse } from "./apiClient";
+import {
+  getApiBaseUrl,
+  loadMissionControlApiBridge,
+  summarizeSnapshot,
+  type MissionControlApiBridge
+} from "./apiClient";
 
-const rootWorkSource = ingestionSources.find((source) => source.id === "SRC-ROOTWORK-WEBSITE");
-const plannedRootWorkRun = rootWorkSource ? planIngestionRun(rootWorkSource) : null;
-const mockCrawlResult = rootWorkSource ? createMockCrawlResult(rootWorkSource) : null;
-const crawlSummary = mockCrawlResult ? summarizeCrawlResult(mockCrawlResult) : [];
-const contentMapSummary = getContentMapSummary(rootWorkContentMap);
-const priorityGaps = getPriorityContentGaps(rootWorkContentMap);
+type LooseRecord = Record<string, any>;
 
-const nodes: GraphNode[] = [
-  { id: "NODE-ORG-TRUAXIOM", entityType: "organization", entityId: organization.id, label: organization.name },
-  ...products.map((product) => ({ id: `NODE-${product.id}`, entityType: "product" as const, entityId: product.id, label: product.name })),
-  ...projects.map((project) => ({ id: `NODE-${project.id}`, entityType: "project" as const, entityId: project.id, label: project.name })),
-  ...recommendations.map((recommendation) => ({ id: `NODE-${recommendation.id}`, entityType: "recommendation" as const, entityId: recommendation.id, label: recommendation.name })),
-  ...tasks.map((task) => ({ id: `NODE-${task.id}`, entityType: "task" as const, entityId: task.id, label: task.name })),
-  { id: `NODE-${rootWorkContentMap.id}`, entityType: "content_map", entityId: rootWorkContentMap.id, label: "RootWork Content Map" },
-  ...rootWorkContentMap.items.map((item) => ({ id: `NODE-${item.id}`, entityType: "content_item" as const, entityId: item.id, label: item.title })),
-  ...rootWorkContentMap.gaps.map((gap) => ({ id: `NODE-${gap.id}`, entityType: "content_gap" as const, entityId: gap.id, label: gap.title })),
-  ...(mockCrawlResult?.records ?? []).map((record) => ({ id: `NODE-${record.id}`, entityType: "extracted_content" as const, entityId: record.id, label: record.title }))
-];
+function asRecord(value: unknown): LooseRecord {
+  return value && typeof value === "object" ? value as LooseRecord : {};
+}
 
-const edges: GraphEdge[] = [
-  ...products.map((product) => ({
-    id: `EDGE-${organization.id}-${product.id}`,
-    fromNodeId: "NODE-ORG-TRUAXIOM",
-    toNodeId: `NODE-${product.id}`,
-    relationship: "owns" as const,
-    confidence: "verified" as const,
-    source: "seed",
-    createdAt: "2026-08-10T00:00:00-04:00"
-  })),
-  ...recommendations.flatMap((recommendation) =>
-    (recommendation.createsTaskIds ?? []).map((taskId) => ({
-      id: `EDGE-${recommendation.id}-${taskId}`,
-      fromNodeId: `NODE-${recommendation.id}`,
-      toNodeId: `NODE-${taskId}`,
-      relationship: "creates" as const,
-      confidence: recommendation.confidence,
-      source: "seed",
-      createdAt: recommendation.createdAt
-    }))
-  ),
-  ...rootWorkContentMap.items.map((item) => ({
-    id: `EDGE-${rootWorkContentMap.id}-${item.id}`,
-    fromNodeId: `NODE-${rootWorkContentMap.id}`,
-    toNodeId: `NODE-${item.id}`,
-    relationship: "contains" as const,
-    confidence: item.confidence,
-    source: "rootWorkContentMap",
-    createdAt: rootWorkContentMap.generatedAt
-  })),
-  ...rootWorkContentMap.gaps.flatMap((gap) =>
-    gap.relatedItemIds.map((itemId) => ({
-      id: `EDGE-${gap.id}-${itemId}`,
-      fromNodeId: `NODE-${gap.id}`,
-      toNodeId: `NODE-${itemId}`,
-      relationship: "has_gap" as const,
-      confidence: "medium" as const,
-      source: "rootWorkContentMap",
-      createdAt: rootWorkContentMap.generatedAt
-    }))
-  ),
-  ...(mockCrawlResult?.records ?? []).map((record) => ({
-    id: `EDGE-${record.sourceId}-${record.id}`,
-    fromNodeId: `NODE-${rootWorkContentMap.id}`,
-    toNodeId: `NODE-${record.id}`,
-    relationship: "extracted_from" as const,
-    confidence: "medium" as const,
-    source: "mockCrawlerAdapter",
-    createdAt: record.discoveredAt
-  }))
-];
+function asArray(value: unknown): LooseRecord[] {
+  return Array.isArray(value) ? value as LooseRecord[] : [];
+}
 
-const contextPacket = buildOrganizationContextPacket({
-  organization,
-  products,
-  projects,
+function valueOr<T>(value: unknown, fallback: T): T {
+  return value === undefined || value === null ? fallback : value as T;
+}
+
+const fallbackRootWorkSource = ingestionSources.find((source) => source.id === "SRC-ROOTWORK-WEBSITE");
+const fallbackMockCrawl = fallbackRootWorkSource ? createMockCrawlResult(fallbackRootWorkSource) : null;
+const fallbackContentSummary = getContentMapSummary(staticRootWorkContentMap);
+const fallbackPriorityGaps = getPriorityContentGaps(staticRootWorkContentMap);
+const fallbackRecommendations = sortRecommendationsForMissionControl(getActiveRecommendations(staticRecommendations));
+const fallbackTasks = sortTasksForMissionControl(staticTasks);
+const fallbackContextPacket = buildOrganizationContextPacket({
+  organization: staticOrganization,
+  products: staticProducts,
+  projects: staticProjects,
   agents,
   modules,
   knowledgeObjects,
-  tasks,
-  recommendations,
-  activity,
-  graph: { nodes, edges, knowledgeObjects }
+  tasks: staticTasks,
+  recommendations: staticRecommendations,
+  activity: staticActivity,
+  graph: { nodes: [], edges: [], knowledgeObjects }
 });
-
-const missionViewState = buildMissionControlViewState({
-  context: contextPacket,
-  contentMap: rootWorkContentMap,
+const fallbackMissionViewState = buildMissionControlViewState({
+  context: fallbackContextPacket,
+  contentMap: staticRootWorkContentMap,
   activeSprintId: "SPRINT-002"
 });
 
-const readiness = describeContextReadiness(contextPacket);
-const sortedTasks = sortTasksForMissionControl(contextPacket.openTasks);
-const sortedRecommendations = sortRecommendationsForMissionControl(getActiveRecommendations(recommendations));
-const navItems = missionViewState.navItems;
-
 export function App() {
-  const [apiHealth, setApiHealth] = useState<ApiHealthResponse | null>(null);
-  const [apiSummary, setApiSummary] = useState<string[]>([]);
-  const [apiError, setApiError] = useState<string | null>(null);
+  const [apiBridge, setApiBridge] = useState<MissionControlApiBridge>({ connected: false });
 
   useEffect(() => {
     let active = true;
 
-    Promise.all([fetchApiHealth(), fetchApiSnapshot()])
-      .then(([health, snapshot]) => {
-        if (!active) return;
-        setApiHealth(health);
-        setApiSummary(summarizeSnapshot(snapshot));
-        setApiError(null);
-      })
-      .catch((error: Error) => {
-        if (!active) return;
-        setApiHealth(null);
-        setApiSummary([]);
-        setApiError(error.message);
-      });
+    loadMissionControlApiBridge().then((bridge) => {
+      if (!active) return;
+      setApiBridge(bridge);
+    });
 
     return () => {
       active = false;
     };
   }, []);
+
+  const view = useMemo(() => {
+    const snapshot = apiBridge.snapshot ?? {};
+    const organization = asRecord(asArray(snapshot.organizations)[0]) || staticOrganization;
+    const products = asArray(snapshot.products);
+    const projects = asArray(snapshot.projects);
+    const tasks = asArray(snapshot.tasks);
+    const recommendations = asArray(apiBridge.activeRecommendations?.length ? apiBridge.activeRecommendations : snapshot.recommendations);
+    const activity = asArray(snapshot.activity);
+
+    const contentMapPayload = apiBridge.rootWorkContentMap ?? {};
+    const contentMap = asRecord(contentMapPayload.contentMap);
+    const contentItems = asArray(contentMap.items).length ? asArray(contentMap.items) : staticRootWorkContentMap.items;
+    const contentSummary = asRecord(contentMapPayload.summary);
+    const priorityGaps = asArray(contentMapPayload.priorityGaps).length ? asArray(contentMapPayload.priorityGaps) : fallbackPriorityGaps;
+
+    const mockCrawl = asRecord(apiBridge.mockCrawl?.crawl);
+    const extractedRecords = asArray(mockCrawl.records).length ? asArray(mockCrawl.records) : fallbackMockCrawl?.records ?? [];
+    const crawlSummary = apiBridge.mockCrawl?.summary?.length ? apiBridge.mockCrawl.summary : fallbackMockCrawl ? summarizeCrawlResult(fallbackMockCrawl) : [];
+    const candidates = asArray(apiBridge.mockCrawl?.candidates);
+    const proposedGaps = asArray(apiBridge.mockCrawl?.proposedGaps);
+
+    const reviewQueue = asRecord(apiBridge.reviewQueue?.queue);
+    const reviewItems = asArray(reviewQueue.items);
+    const reviewSummary = asRecord(reviewQueue.summary);
+
+    return {
+      organization,
+      products: products.length ? products : staticProducts,
+      projects: projects.length ? projects : staticProjects,
+      tasks: tasks.length ? tasks : fallbackTasks,
+      recommendations: recommendations.length ? recommendations : fallbackRecommendations,
+      activity: activity.length ? activity : staticActivity,
+      contentItems,
+      contentSummary: {
+        totalItems: valueOr<number>(contentSummary.totalItems, fallbackContentSummary.totalItems),
+        mappedItems: valueOr<number>(contentSummary.mappedItems, fallbackContentSummary.mappedItems),
+        needsReview: valueOr<number>(contentSummary.needsReview, fallbackContentSummary.needsReview),
+        openGaps: valueOr<number>(contentSummary.openGaps, fallbackContentSummary.openGaps),
+        clusters: valueOr<number>(contentSummary.clusters, fallbackContentSummary.clusters),
+        averageCoverageScore: valueOr<number>(contentSummary.averageCoverageScore, fallbackContentSummary.averageCoverageScore)
+      },
+      priorityGaps,
+      extractedRecords,
+      crawlSummary,
+      candidates,
+      proposedGaps,
+      reviewItems,
+      reviewSummary,
+      readiness: apiBridge.organizationContext?.readiness?.length ? apiBridge.organizationContext.readiness : ["Static fallback is active until the local API is running."],
+      navItems: fallbackMissionViewState.navItems,
+      systemReadiness: fallbackMissionViewState.systemReadiness,
+      snapshotSummary: apiBridge.snapshot ? summarizeSnapshot(apiBridge.snapshot) : []
+    };
+  }, [apiBridge]);
 
   return (
     <main className="tip-shell">
@@ -161,7 +150,7 @@ export function App() {
         </div>
 
         <nav>
-          {navItems.map((item) => (
+          {view.navItems.map((item) => (
             <button key={item} className={item === "Home" ? "active" : ""}>{item}</button>
           ))}
         </nav>
@@ -171,7 +160,7 @@ export function App() {
         <header className="topbar">
           <div>
             <p className="eyebrow">Organization</p>
-            <h1>{organization.name}</h1>
+            <h1>{view.organization.name ?? staticOrganization.name}</h1>
           </div>
           <div className="command-bar">Search products, docs, agents, tasks…</div>
         </header>
@@ -179,28 +168,28 @@ export function App() {
         <section className="hero-grid">
           <article className="panel large">
             <p className="eyebrow">Organizational Context</p>
-            <h2>{organization.vision}</h2>
-            <p>{organization.description}</p>
+            <h2>{view.organization.vision ?? staticOrganization.vision}</h2>
+            <p>{view.organization.description ?? staticOrganization.description}</p>
           </article>
 
           <article className="panel metric">
-            <span>{contentMapSummary.totalItems}</span>
+            <span>{view.contentSummary.totalItems}</span>
             <p>RootWork Items</p>
           </article>
 
           <article className="panel metric">
-            <span>{contentMapSummary.openGaps}</span>
-            <p>Open Gaps</p>
+            <span>{view.reviewItems.length}</span>
+            <p>Review Items</p>
           </article>
 
           <article className="panel metric">
-            <span>{mockCrawlResult?.records.length ?? 0}</span>
+            <span>{view.extractedRecords.length}</span>
             <p>Extracted Records</p>
           </article>
 
           <article className="panel metric">
-            <span>{contextPacket.graphSummary.nodes}</span>
-            <p>Graph Nodes</p>
+            <span>{view.recommendations.length}</span>
+            <p>Recommendations</p>
           </article>
         </section>
 
@@ -211,13 +200,37 @@ export function App() {
               <strong>Local API Bridge</strong>
             </div>
             <div className="focus-card">
-              <h3>{apiHealth ? "API Connected" : "Static Fallback Active"}</h3>
-              <p>{apiHealth ? `${apiHealth.service} is running in ${apiHealth.environment} mode.` : "Mission Control is still usable from local seed data while the API is offline."}</p>
-              <small>{apiHealth?.status ?? apiError ?? "waiting for local API"}</small>
+              <h3>{apiBridge.connected ? "API Connected" : "Static Fallback Active"}</h3>
+              <p>{apiBridge.connected ? `${apiBridge.health?.service} is running in ${apiBridge.health?.environment ?? apiBridge.health?.mode} mode.` : "Mission Control is still usable from local seed data while the API is offline."}</p>
+              <small>{apiBridge.health?.status ?? apiBridge.error ?? "waiting for local API"}</small>
             </div>
             <div className="mini-metrics api-metrics">
               <span>{getApiBaseUrl()}</span>
-              {apiSummary.map((note) => <span key={note}>{note}</span>)}
+              {view.snapshotSummary.map((note) => <span key={note}>{note}</span>)}
+            </div>
+          </article>
+
+          <article className="panel">
+            <div className="panel-heading">
+              <p className="eyebrow">Review Queue</p>
+              <strong>Human Approval Layer</strong>
+            </div>
+            <div className="mini-metrics">
+              <span>{valueOr<number>(view.reviewSummary.total, view.reviewItems.length)} total</span>
+              <span>{valueOr<number>(view.reviewSummary.needsReview, view.reviewItems.length)} needs review</span>
+              <span>{valueOr<number>(view.reviewSummary.gaps, view.proposedGaps.length)} gaps</span>
+              <span>{view.candidates.length} candidates</span>
+            </div>
+            <div className="stack">
+              {(view.reviewItems.length ? view.reviewItems : view.priorityGaps).slice(0, 5).map((item) => (
+                <div className="row-card" key={item.id ?? item.title}>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <p>{item.description ?? item.recommendedAction}</p>
+                  </div>
+                  <span>{item.status ?? item.priority ?? "review"}</span>
+                </div>
+              ))}
             </div>
           </article>
 
@@ -227,13 +240,13 @@ export function App() {
               <strong>Content Map</strong>
             </div>
             <div className="mini-metrics">
-              <span>{contentMapSummary.mappedItems} mapped</span>
-              <span>{contentMapSummary.needsReview} review</span>
-              <span>{contentMapSummary.clusters} clusters</span>
-              <span>{contentMapSummary.averageCoverageScore}% coverage</span>
+              <span>{view.contentSummary.mappedItems} mapped</span>
+              <span>{view.contentSummary.needsReview} review</span>
+              <span>{view.contentSummary.clusters} clusters</span>
+              <span>{view.contentSummary.averageCoverageScore}% coverage</span>
             </div>
             <div className="stack">
-              {rootWorkContentMap.items.map((item) => (
+              {view.contentItems.map((item) => (
                 <div className="row-card" key={item.id}>
                   <div>
                     <strong>{item.title}</strong>
@@ -247,51 +260,14 @@ export function App() {
 
           <article className="panel">
             <div className="panel-heading">
-              <p className="eyebrow">Content Intelligence</p>
-              <strong>Priority Gaps</strong>
-            </div>
-            <div className="stack">
-              {priorityGaps.map((gap) => (
-                <div className="focus-card" key={gap.id}>
-                  <h3>{gap.title}</h3>
-                  <p>{gap.description}</p>
-                  <small>{gap.priority} priority · {gap.gapType}</small>
-                </div>
-              ))}
-            </div>
-          </article>
-
-          <article className="panel">
-            <div className="panel-heading">
-              <p className="eyebrow">Ingestion</p>
-              <strong>Planned RootWork Run</strong>
-            </div>
-            {plannedRootWorkRun ? (
-              <div className="focus-card">
-                <h3>{plannedRootWorkRun.run.id}</h3>
-                <p>Source: {plannedRootWorkRun.source.url}</p>
-                <small>{plannedRootWorkRun.run.status} · {plannedRootWorkRun.steps.length} planned steps</small>
-              </div>
-            ) : <p>No RootWork ingestion source found.</p>}
-            <div className="stack compact-stack">
-              {plannedRootWorkRun?.steps.slice(0, 4).map((step) => (
-                <div className="activity-item" key={step}>
-                  <strong>{step}</strong>
-                </div>
-              ))}
-            </div>
-          </article>
-
-          <article className="panel">
-            <div className="panel-heading">
               <p className="eyebrow">Crawler Adapter</p>
-              <strong>Mock Extracted Records</strong>
+              <strong>Extracted Records</strong>
             </div>
             <div className="mini-metrics">
-              {crawlSummary.map((note) => <span key={note}>{note}</span>)}
+              {view.crawlSummary.map((note) => <span key={note}>{note}</span>)}
             </div>
             <div className="stack">
-              {mockCrawlResult?.records.map((record) => (
+              {view.extractedRecords.map((record) => (
                 <div className="row-card" key={record.id}>
                   <div>
                     <strong>{record.title}</strong>
@@ -305,17 +281,15 @@ export function App() {
 
           <article className="panel">
             <div className="panel-heading">
-              <p className="eyebrow">Platform Systems</p>
-              <strong>Readiness Stack</strong>
+              <p className="eyebrow">Content Intelligence</p>
+              <strong>Priority Gaps</strong>
             </div>
             <div className="stack">
-              {missionViewState.systemReadiness.map((item) => (
-                <div className="row-card" key={item.system}>
-                  <div>
-                    <strong>{item.system}</strong>
-                    <p>{item.note}</p>
-                  </div>
-                  <span>{item.status}</span>
+              {view.priorityGaps.map((gap) => (
+                <div className="focus-card" key={gap.id}>
+                  <h3>{gap.title}</h3>
+                  <p>{gap.description}</p>
+                  <small>{gap.priority} priority · {gap.gapType}</small>
                 </div>
               ))}
             </div>
@@ -327,10 +301,10 @@ export function App() {
               <strong>What TIP Thinks Comes Next</strong>
             </div>
             <div className="stack">
-              {sortedRecommendations.map((recommendation) => (
+              {view.recommendations.map((recommendation) => (
                 <div className="focus-card" key={recommendation.id}>
                   <h3>{recommendation.name}</h3>
-                  <p>{recommendation.expectedImpact}</p>
+                  <p>{recommendation.expectedImpact ?? recommendation.rationale}</p>
                   <small>{recommendation.priority} priority · {recommendation.confidence} confidence</small>
                 </div>
               ))}
@@ -343,7 +317,7 @@ export function App() {
               <strong>Sprint 002 Queue</strong>
             </div>
             <div className="stack">
-              {sortedTasks.map((task) => (
+              {view.tasks.map((task) => (
                 <div className="row-card" key={task.id}>
                   <div>
                     <strong>{task.name}</strong>
@@ -371,7 +345,25 @@ export function App() {
                 </div>
               ))}
             </div>
-            <p className="fine-print">Source: {rootWorkSource?.url}</p>
+            <p className="fine-print">Source: {fallbackRootWorkSource?.url}</p>
+          </article>
+
+          <article className="panel">
+            <div className="panel-heading">
+              <p className="eyebrow">Platform Systems</p>
+              <strong>Readiness Stack</strong>
+            </div>
+            <div className="stack">
+              {view.systemReadiness.map((item) => (
+                <div className="row-card" key={item.system}>
+                  <div>
+                    <strong>{item.system}</strong>
+                    <p>{item.note}</p>
+                  </div>
+                  <span>{item.status}</span>
+                </div>
+              ))}
+            </div>
           </article>
 
           <article className="panel">
@@ -380,7 +372,7 @@ export function App() {
               <strong>Context Packet</strong>
             </div>
             <ul className="status-list">
-              {readiness.map((note) => <li key={note}>{note}</li>)}
+              {view.readiness.map((note) => <li key={note}>{note}</li>)}
             </ul>
           </article>
 
@@ -390,7 +382,7 @@ export function App() {
               <strong>Recent Events</strong>
             </div>
             <div className="stack">
-              {activity.map((event) => (
+              {view.activity.map((event) => (
                 <div className="activity-item" key={event.id}>
                   <strong>{event.label}</strong>
                   <p>{event.description}</p>
