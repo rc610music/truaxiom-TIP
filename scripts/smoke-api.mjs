@@ -1,4 +1,4 @@
-const apiBaseUrl = process.env.TIP_API_BASE_URL || "http://127.0.0.1:8787";
+const apiBaseUrl = process.env.TIP_API_BASE_URL || "http://127.0.0.1:4310";
 
 const requiredEndpoints = [
   "/health",
@@ -7,7 +7,8 @@ const requiredEndpoints = [
   "/v1/rootwork/content-map",
   "/v1/rootwork/mock-crawl",
   "/v1/recommendations/active",
-  "/v1/review-queue"
+  "/v1/review-queue",
+  "/v1/review-queue/decisions"
 ];
 
 async function assertEndpoint(path) {
@@ -51,6 +52,18 @@ async function assertDecisionEndpoint(reviewQueue) {
     throw new Error("Review decision smoke test did not return deferred status.");
   }
 
+  const decisionsResponse = await fetch(`${apiBaseUrl}/v1/review-queue/decisions`);
+  if (!decisionsResponse.ok) {
+    throw new Error(`GET /v1/review-queue/decisions failed with ${decisionsResponse.status} ${decisionsResponse.statusText}`);
+  }
+
+  const decisionsBody = await decisionsResponse.json();
+  const matchingDecision = decisionsBody?.decisions?.some((decision) => decision.id === body.decision.id);
+
+  if (!matchingDecision) {
+    throw new Error("Review decision smoke test did not find the recorded decision in the decision list.");
+  }
+
   return body;
 }
 
@@ -65,8 +78,8 @@ try {
     console.log(`✓ ${endpoint}`);
   }
 
-  await assertDecisionEndpoint(reviewQueue);
-  console.log("✓ POST /v1/review-queue/decisions");
+  const decisionResult = await assertDecisionEndpoint(reviewQueue);
+  console.log(`✓ POST /v1/review-queue/decisions (${decisionResult.persistence ?? "unknown persistence"})`);
 
   console.log("TIP API smoke test passed.");
 } catch (error) {
