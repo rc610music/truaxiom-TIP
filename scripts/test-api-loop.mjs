@@ -33,10 +33,12 @@ function startApi() {
 }
 
 async function main() {
-  console.log("Building TIP API...");
-  await run("npm", ["run", "build:api"]);
+  if (env.TIP_API_TEST_BUILD === "true") {
+    console.log("Building TIP API before smoke test...");
+    await run("npm", ["run", "build:api"]);
+  }
 
-  console.log("Starting TIP API...");
+  console.log("Starting TIP API for smoke test...");
   const api = startApi();
 
   const stopApi = () => {
