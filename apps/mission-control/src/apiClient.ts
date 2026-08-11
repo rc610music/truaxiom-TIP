@@ -47,6 +47,19 @@ export interface ApiReviewQueueResponse {
     summary?: Record<string, unknown>;
   };
   summary?: string[];
+  mode?: string;
+  persistence?: string;
+}
+
+export type ReviewDecisionAction = "approve" | "reject" | "defer";
+
+export interface ApiReviewDecisionResponse {
+  decision?: Record<string, unknown>;
+  item?: Record<string, unknown>;
+  queue?: ApiReviewQueueResponse["queue"];
+  summary?: string[];
+  mode?: string;
+  persistence?: string;
 }
 
 export interface MissionControlApiBridge {
@@ -72,6 +85,23 @@ async function getJson<T>(path: string): Promise<T> {
 
   if (!response.ok) {
     throw new Error(`TIP API request failed: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`TIP API request failed: ${response.status} ${response.statusText} ${errorText}`);
   }
 
   return response.json() as Promise<T>;
@@ -103,6 +133,17 @@ export async function fetchActiveRecommendations(): Promise<unknown[]> {
 
 export async function fetchReviewQueue(): Promise<ApiReviewQueueResponse> {
   return getJson<ApiReviewQueueResponse>("/v1/review-queue");
+}
+
+export async function decideReviewQueueItem(input: {
+  itemId: string;
+  action: ReviewDecisionAction;
+  note?: string;
+}): Promise<ApiReviewDecisionResponse> {
+  return postJson<ApiReviewDecisionResponse>("/v1/review-queue/decisions", {
+    ...input,
+    decidedBy: "founder-local"
+  });
 }
 
 export async function loadMissionControlApiBridge(): Promise<MissionControlApiBridge> {
