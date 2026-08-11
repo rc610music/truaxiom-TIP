@@ -9,3 +9,5 @@ export * from "./ingestionRunner";
 export * from "./dataAccess";
 export * from "./crawlerAdapter";
 export * from "./missionControlViewState";
+export * from "./supabaseRepositoryAdapter";
+export * from "./contentMapCandidates";
