@@ -8,6 +8,7 @@ export type ReviewQueueItemType =
   | "task_candidate";
 
 export type ReviewQueueStatus = "needs_review" | "approved" | "rejected" | "deferred" | "implemented";
+export type ReviewDecisionAction = "approve" | "reject" | "defer";
 
 export interface ReviewQueueItem {
   id: string;
@@ -24,6 +25,32 @@ export interface ReviewQueueItem {
   createdAt: string;
 }
 
+export interface ReviewDecision {
+  id: string;
+  queueId: string;
+  itemId: string;
+  action: ReviewDecisionAction;
+  resultingStatus: ReviewQueueStatus;
+  decidedBy: string;
+  decidedAt: string;
+  note?: string;
+  mode: "local-simulated" | "persistent";
+}
+
+export interface ReviewDecisionInput {
+  itemId: string;
+  action: ReviewDecisionAction;
+  decidedBy?: string;
+  note?: string;
+}
+
+export interface ReviewDecisionResult {
+  decision: ReviewDecision;
+  item: ReviewQueueItem;
+  queue: ReviewQueue;
+  summary: string[];
+}
+
 export interface ReviewQueue {
   id: string;
   generatedAt: string;
@@ -32,6 +59,9 @@ export interface ReviewQueue {
   summary: {
     total: number;
     needsReview: number;
+    approved: number;
+    rejected: number;
+    deferred: number;
     critical: number;
     contentCandidates: number;
     gaps: number;
@@ -48,6 +78,27 @@ function normalizePriority(priority?: string): ReviewQueueItem["priority"] {
   }
 
   return "medium";
+}
+
+function statusForDecision(action: ReviewDecisionAction): ReviewQueueStatus {
+  if (action === "approve") return "approved";
+  if (action === "reject") return "rejected";
+  return "deferred";
+}
+
+function summarizeItems(items: ReviewQueueItem[]) {
+  return {
+    total: items.length,
+    needsReview: items.filter((item) => item.status === "needs_review").length,
+    approved: items.filter((item) => item.status === "approved").length,
+    rejected: items.filter((item) => item.status === "rejected").length,
+    deferred: items.filter((item) => item.status === "deferred").length,
+    critical: items.filter((item) => item.priority === "critical" || item.priority === "urgent").length,
+    contentCandidates: items.filter((item) => item.type === "content_map_candidate").length,
+    gaps: items.filter((item) => item.type === "content_gap_candidate").length,
+    recommendations: items.filter((item) => item.type === "recommendation").length,
+    tasks: items.filter((item) => item.type === "task_candidate").length
+  };
 }
 
 export function buildReviewQueueForMissionControl(input: {
@@ -131,7 +182,7 @@ export function buildReviewQueueForMissionControl(input: {
       id: `REV-${record.id}`,
       type: "content_map_candidate" as const,
       title: record.title,
-      description: record.excerpt,
+      description: record.excerpt ?? "Extracted content record needs a mapping decision.",
       status: "needs_review" as const,
       priority: "medium" as const,
       source: "extracted-content-record",
@@ -143,21 +194,57 @@ export function buildReviewQueueForMissionControl(input: {
     }));
 
   const items = [...gapItems, ...recommendationItems, ...taskItems, ...candidateItems, ...extractedItemsWithoutCandidates];
+  const summary = summarizeItems(items);
 
   return {
     id: "REVQ-MISSION-CONTROL-SPRINT-002",
     generatedAt,
-    status: items.some((item) => item.status === "needs_review") ? "open" : "cleared",
+    status: summary.needsReview > 0 ? "open" : "cleared",
     items,
-    summary: {
-      total: items.length,
-      needsReview: items.filter((item) => item.status === "needs_review").length,
-      critical: items.filter((item) => item.priority === "critical" || item.priority === "urgent").length,
-      contentCandidates: items.filter((item) => item.type === "content_map_candidate").length,
-      gaps: items.filter((item) => item.type === "content_gap_candidate").length,
-      recommendations: items.filter((item) => item.type === "recommendation").length,
-      tasks: items.filter((item) => item.type === "task_candidate").length
-    }
+    summary
+  };
+}
+
+export function applyReviewDecision(queue: ReviewQueue, input: ReviewDecisionInput): ReviewDecisionResult {
+  const resultingStatus = statusForDecision(input.action);
+  const item = queue.items.find((entry) => entry.id === input.itemId);
+
+  if (!item) {
+    throw new Error(`Review item not found: ${input.itemId}`);
+  }
+
+  const decidedAt = new Date().toISOString();
+  const updatedItem: ReviewQueueItem = {
+    ...item,
+    status: resultingStatus
+  };
+
+  const updatedItems = queue.items.map((entry) => entry.id === item.id ? updatedItem : entry);
+  const updatedSummary = summarizeItems(updatedItems);
+  const updatedQueue: ReviewQueue = {
+    ...queue,
+    status: updatedSummary.needsReview > 0 ? "open" : "cleared",
+    items: updatedItems,
+    summary: updatedSummary
+  };
+
+  const decision: ReviewDecision = {
+    id: `RDEC-${input.itemId}-${input.action}-${Date.now()}`,
+    queueId: queue.id,
+    itemId: input.itemId,
+    action: input.action,
+    resultingStatus,
+    decidedBy: input.decidedBy ?? "founder-local",
+    decidedAt,
+    note: input.note,
+    mode: "local-simulated"
+  };
+
+  return {
+    decision,
+    item: updatedItem,
+    queue: updatedQueue,
+    summary: summarizeReviewQueue(updatedQueue)
   };
 }
 
@@ -165,6 +252,9 @@ export function summarizeReviewQueue(queue: ReviewQueue): string[] {
   return [
     `${queue.summary.total} total review item(s)`,
     `${queue.summary.needsReview} needing review`,
+    `${queue.summary.approved} approved item(s)`,
+    `${queue.summary.rejected} rejected item(s)`,
+    `${queue.summary.deferred} deferred item(s)`,
     `${queue.summary.critical} critical/urgent item(s)`,
     `${queue.summary.contentCandidates} content candidate(s)`,
     `${queue.summary.gaps} gap candidate(s)`
