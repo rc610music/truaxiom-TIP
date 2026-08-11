@@ -19,18 +19,23 @@ const requiredPaths = [
   "packages/core/src/apiGateway.ts",
   "packages/core/src/bootstrapSnapshot.ts",
   "packages/core/src/serverRuntime.ts",
+  "packages/core/src/reviewQueue.ts",
   "database/schema.sql",
   "database/002_content_ingestion.sql",
   "database/003_data_access_and_crawler.sql",
   "database/004_supabase_adapter_and_candidates.sql",
   "database/005_ai_and_review_workflows.sql",
   "database/006_api_runtime.sql",
+  "database/007_review_queue.sql",
   "docs/sprints/SPRINT_001_Foundation.md",
   "docs/sprints/SPRINT_002_Core_Platform_Draft.md",
   "docs/sprints/SPRINT_002_PROGRESS.md",
+  "docs/sprints/SPRINT_002_API_REVIEW_QUEUE_ADDENDUM.md",
   "docs/development/SERVER_SIDE_SETUP.md",
-  "docs/architecture/API-0001_API_Gateway.md",
-  "scripts/smoke-api.mjs"
+  "docs/development/REVIEW_QUEUE.md",
+  "docs/deployment/DEPLOYMENT_TARGETS.md",
+  "docs/deployment/SUPABASE_BOOTSTRAP_CHECKLIST.md",
+  "docs/architecture/API-0001_API_Gateway.md"
 ];
 
 const missing = requiredPaths.filter((path) => !existsSync(path));
