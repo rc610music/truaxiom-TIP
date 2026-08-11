@@ -31,6 +31,8 @@ export interface ApiGatewayRequest {
 export interface ApiGatewayOptions {
   repository?: TipDataRepository;
   reviewDecisionRepository?: ReviewDecisionRepository;
+  modeLabel?: string;
+  persistenceLabel?: string;
 }
 
 const availableRoutes = [
@@ -57,6 +59,8 @@ function bodyAsRecord(body: unknown): Record<string, unknown> {
 export function createTipApiGateway(options: ApiGatewayOptions = {}) {
   const repository = options.repository ?? createInMemoryRepository(createTipBootstrapSnapshot());
   const reviewDecisionRepository = options.reviewDecisionRepository ?? createInMemoryReviewDecisionRepository();
+  const modeLabel = options.modeLabel ?? "local-simulated";
+  const persistenceLabel = options.persistenceLabel ?? "in-memory-review-decision-repository";
   let latestReviewQueue: ReviewQueue | null = null;
 
   function json<T>(status: number, body: T): ApiGatewayResponse<T> {
@@ -134,11 +138,14 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
           return json(200, {
             ...result,
             decisions,
-            mode: "local-simulated",
-            persistence: "in-memory-review-decision-repository"
+            mode: modeLabel,
+            persistence: persistenceLabel
           });
         } catch (error) {
-          return json(404, { error: error instanceof Error ? error.message : "Review decision failed" });
+          return json(500, {
+            error: error instanceof Error ? error.message : "Review decision failed",
+            persistence: persistenceLabel
+          });
         }
       }
 
@@ -149,8 +156,8 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
         return json(200, {
           decisions,
           count: decisions.length,
-          mode: "local-simulated",
-          persistence: "in-memory-review-decision-repository"
+          mode: modeLabel,
+          persistence: persistenceLabel
         });
       }
 
@@ -173,8 +180,9 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
         return json(200, {
           status: "ok",
           service: "TIP API Gateway",
-          environment: "local-static",
-          mode: "local-static",
+          environment: modeLabel,
+          mode: modeLabel,
+          persistence: persistenceLabel,
           timestamp: new Date().toISOString(),
           summary: describeRepositorySnapshot(snapshot),
           availableRoutes
@@ -245,8 +253,8 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
         return json(200, {
           queue,
           summary: summarizeReviewQueue(queue),
-          mode: "local-simulated",
-          persistence: "in-memory-only"
+          mode: modeLabel,
+          persistence: persistenceLabel
         });
       }
 
