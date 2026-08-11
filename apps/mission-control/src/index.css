@@ -144,7 +144,7 @@ p {
 
 .hero-grid {
   display: grid;
-  grid-template-columns: 1.8fr repeat(3, minmax(140px, 0.6fr));
+  grid-template-columns: 1.8fr repeat(4, minmax(120px, 0.6fr));
   gap: 16px;
   margin-bottom: 16px;
 }
@@ -208,6 +208,7 @@ p {
 }
 
 .row-card span {
+  flex-shrink: 0;
   align-self: flex-start;
   border-radius: 999px;
   background: rgba(139, 92, 246, 0.16);
@@ -226,6 +227,8 @@ p {
   display: block;
   margin-top: 16px;
   color: #67e8f9;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .status-list {
@@ -238,6 +241,22 @@ p {
 .activity-item strong {
   display: block;
   margin-bottom: 4px;
+}
+
+.fine-print {
+  margin-top: 16px;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+@media (max-width: 1180px) {
+  .hero-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .panel.large {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 980px) {
@@ -260,6 +279,10 @@ p {
   .content-grid {
     grid-template-columns: 1fr;
     display: grid;
+  }
+
+  .panel.large {
+    grid-column: auto;
   }
 
   .command-bar {
