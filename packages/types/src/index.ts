@@ -31,13 +31,32 @@ export type RelationshipType =
   | "covers"
   | "has_gap"
   | "clusters_with"
-  | "canonical_for";
+  | "canonical_for"
+  | "extracted_from"
+  | "stored_in"
+  | "syncs_with";
 
 export type ContentItemType = "page" | "article" | "resource" | "practice" | "quiz" | "offer" | "podcast" | "video" | "social" | "email";
 export type ContentLifecycleStatus = "discovered" | "mapped" | "needs_review" | "approved" | "stale" | "gap" | "planned";
 export type ContentIntent = "awareness" | "education" | "conversion" | "retention" | "trust" | "community" | "support";
 export type ContentGapType = "missing_topic" | "thin_content" | "stale_content" | "broken_path" | "weak_conversion" | "seo_opportunity" | "brand_alignment";
 export type IngestionRunStatus = "queued" | "running" | "completed" | "failed";
+export type DataCollectionName =
+  | "organizations"
+  | "products"
+  | "projects"
+  | "modules"
+  | "agents"
+  | "knowledgeObjects"
+  | "tasks"
+  | "recommendations"
+  | "ingestionSources"
+  | "contentMaps"
+  | "graphNodes"
+  | "graphEdges"
+  | "activity";
+export type CrawlStatus = "queued" | "fetching" | "extracted" | "mapped" | "failed" | "skipped";
+export type ExtractedContentFormat = "html" | "markdown" | "text" | "json";
 
 export interface BaseEntity {
   id: string;
@@ -110,7 +129,9 @@ export interface GraphNode {
     | "content_map"
     | "content_item"
     | "content_gap"
-    | "ingestion_run";
+    | "ingestion_run"
+    | "extracted_content"
+    | "repository_collection";
   entityId: string;
   label: string;
   metadata?: Record<string, unknown>;
@@ -255,6 +276,122 @@ export interface ContentMap {
     openGaps: number;
     staleItems: number;
   };
+}
+
+export interface RepositoryRecord<T> {
+  collection: DataCollectionName;
+  id: string;
+  data: T;
+  version: number;
+  storedAt: string;
+}
+
+export interface DataAccessResult<T> {
+  ok: boolean;
+  data?: T;
+  error?: string;
+}
+
+export interface TipRepositorySnapshot {
+  organizations: Organization[];
+  products: Product[];
+  projects: Project[];
+  modules: Module[];
+  agents: Agent[];
+  knowledgeObjects: KnowledgeObject[];
+  tasks: Task[];
+  recommendations: Recommendation[];
+  ingestionSources: IngestionSource[];
+  contentMaps: ContentMap[];
+  graphNodes: GraphNode[];
+  graphEdges: GraphEdge[];
+  activity: ActivityEvent[];
+}
+
+export interface TipDataRepository {
+  snapshot(): TipRepositorySnapshot;
+  list<T>(collection: DataCollectionName): DataAccessResult<T[]>;
+  findById<T>(collection: DataCollectionName, id: string): DataAccessResult<T>;
+  upsert<T extends { id: string }>(collection: DataCollectionName, record: T): DataAccessResult<T>;
+}
+
+export interface CrawlRequest {
+  id: string;
+  sourceId: string;
+  productId: string;
+  rootUrl: string;
+  includePaths: string[];
+  excludePaths?: string[];
+  maxDepth: number;
+  requestedAt: string;
+}
+
+export interface ExtractedContentRecord {
+  id: string;
+  sourceId: string;
+  productId: string;
+  url: string;
+  title: string;
+  format: ExtractedContentFormat;
+  rawText?: string;
+  excerpt?: string;
+  detectedType?: ContentItemType;
+  detectedIntent?: ContentIntent;
+  detectedTopics: string[];
+  status: CrawlStatus;
+  httpStatus?: number;
+  canonicalUrl?: string;
+  discoveredAt: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface CrawlResult {
+  requestId: string;
+  sourceId: string;
+  status: IngestionRunStatus;
+  startedAt: string;
+  completedAt: string;
+  records: ExtractedContentRecord[];
+  errors: string[];
+  summary: {
+    requestedPaths: number;
+    fetchedRecords: number;
+    skippedRecords: number;
+    failedRecords: number;
+  };
+}
+
+export interface CrawlerAdapterContract {
+  id: string;
+  name: string;
+  version: string;
+  sourceTypes: IngestionSource["sourceType"][];
+  createRequest(source: IngestionSource): CrawlRequest;
+  crawl(request: CrawlRequest): Promise<CrawlResult>;
+}
+
+export interface MissionControlViewState {
+  organizationId: string;
+  activeProductId: string;
+  activeSprintId: string;
+  navItems: string[];
+  metrics: Array<{
+    label: string;
+    value: string | number;
+    description?: string;
+  }>;
+  panels: Array<{
+    id: string;
+    title: string;
+    eyebrow: string;
+    status?: string;
+    priority?: Priority;
+  }>;
+  systemReadiness: Array<{
+    system: string;
+    status: "ready" | "stubbed" | "planned" | "blocked";
+    note: string;
+  }>;
 }
 
 export interface OrganizationContextPacket {
