@@ -360,6 +360,61 @@ Added:
 
 ---
 
+## Completed in API Bridge Pass
+
+### No-Supabase Runtime Path
+
+Confirmed the local-first path:
+
+```text
+Mission Control → local API → packages/core → in-memory snapshot
+```
+
+This lets Sprint 002 continue without hosted Supabase.
+
+### Mission Control API Client
+
+Added `apps/mission-control/src/apiClient.ts` with:
+
+- API base URL resolution,
+- health endpoint client,
+- snapshot endpoint client,
+- snapshot summary helper,
+- static fallback compatibility.
+
+Mission Control now attempts to connect to the local API and displays either:
+
+- `API Connected`, or
+- `Static Fallback Active` when the local API is offline.
+
+### API Smoke Test
+
+Added `scripts/smoke-api.mjs` and root command:
+
+- `npm run smoke:api`
+
+The smoke test checks:
+
+- `/health`
+- `/v1/snapshot`
+- `/v1/context/organization`
+- `/v1/rootwork/content-map`
+- `/v1/rootwork/mock-crawl`
+- `/v1/recommendations/active`
+
+### Backend Bridge Options
+
+Added `docs/development/BACKEND_BRIDGE_OPTIONS.md` documenting:
+
+- local API/in-memory path,
+- Supabase later,
+- Neon backup path,
+- Turso backup path,
+- Cloudflare D1 backup path,
+- local Supabase CLI development path.
+
+---
+
 ## Current Sprint 002 Status
 
 Sprint 002 has moved TIP from architecture-only into an initial full-stack platform skeleton.
@@ -392,22 +447,23 @@ Mission Control now represents:
 - content gaps,
 - planned ingestion run,
 - mock extracted content records,
+- local API connection status,
 - crawler adapter readiness,
 - data access readiness,
 - activity,
 - and context readiness.
 
-The platform repository now includes enough structure to support local development, CI validation, local API serving, mock ingestion, content map review, and future Supabase persistence.
+The platform repository now includes enough structure to support local development, CI validation, local API serving, mock ingestion, content map review, and future Supabase or alternate persistence.
 
 ---
 
 ## Next Build Targets
 
-1. Add API route tests / smoke-test script.
-2. Add Mission Control API client to consume the local API instead of importing core data directly.
-3. Add review queue model for candidate approvals.
-4. Add deployment target notes for Cloudflare/Vercel-style hosting.
-5. Add Supabase bootstrap checklist for when billing is cleared.
+1. Replace direct Mission Control imports one panel at a time with API-backed data.
+2. Add review queue model for candidate approvals.
+3. Add deployment target notes for Cloudflare/Vercel-style hosting.
+4. Add Supabase bootstrap checklist for when billing is cleared.
+5. Add Neon/D1 adapter sketches only if Supabase remains blocked.
 
 ---
 
