@@ -2,7 +2,10 @@ export interface ApiHealthResponse {
   status: string;
   service: string;
   environment: string;
+  mode?: string;
   timestamp: string;
+  summary?: string[];
+  availableRoutes?: string[];
 }
 
 export interface ApiSnapshotResponse {
@@ -12,6 +15,50 @@ export interface ApiSnapshotResponse {
   tasks?: unknown[];
   recommendations?: unknown[];
   contentMaps?: unknown[];
+  activity?: unknown[];
+}
+
+export interface ApiOrganizationContextResponse {
+  packet?: Record<string, unknown>;
+  readiness?: string[];
+}
+
+export interface ApiRootWorkContentMapResponse {
+  contentMap?: Record<string, unknown>;
+  summary?: Record<string, unknown>;
+  priorityGaps?: unknown[];
+}
+
+export interface ApiMockCrawlResponse {
+  crawl?: {
+    records?: unknown[];
+    summary?: Record<string, unknown>;
+  };
+  summary?: string[];
+  candidates?: unknown[];
+  proposedGaps?: unknown[];
+}
+
+export interface ApiReviewQueueResponse {
+  queue?: {
+    id?: string;
+    status?: string;
+    items?: unknown[];
+    summary?: Record<string, unknown>;
+  };
+  summary?: string[];
+}
+
+export interface MissionControlApiBridge {
+  connected: boolean;
+  error?: string;
+  health?: ApiHealthResponse;
+  snapshot?: ApiSnapshotResponse;
+  organizationContext?: ApiOrganizationContextResponse;
+  rootWorkContentMap?: ApiRootWorkContentMapResponse;
+  mockCrawl?: ApiMockCrawlResponse;
+  activeRecommendations?: unknown[];
+  reviewQueue?: ApiReviewQueueResponse;
 }
 
 const defaultApiBaseUrl = "http://127.0.0.1:8787";
@@ -36,6 +83,56 @@ export async function fetchApiHealth(): Promise<ApiHealthResponse> {
 
 export async function fetchApiSnapshot(): Promise<ApiSnapshotResponse> {
   return getJson<ApiSnapshotResponse>("/v1/snapshot");
+}
+
+export async function fetchOrganizationContext(): Promise<ApiOrganizationContextResponse> {
+  return getJson<ApiOrganizationContextResponse>("/v1/context/organization");
+}
+
+export async function fetchRootWorkContentMap(): Promise<ApiRootWorkContentMapResponse> {
+  return getJson<ApiRootWorkContentMapResponse>("/v1/rootwork/content-map");
+}
+
+export async function fetchRootWorkMockCrawl(): Promise<ApiMockCrawlResponse> {
+  return getJson<ApiMockCrawlResponse>("/v1/rootwork/mock-crawl");
+}
+
+export async function fetchActiveRecommendations(): Promise<unknown[]> {
+  return getJson<unknown[]>("/v1/recommendations/active");
+}
+
+export async function fetchReviewQueue(): Promise<ApiReviewQueueResponse> {
+  return getJson<ApiReviewQueueResponse>("/v1/review-queue");
+}
+
+export async function loadMissionControlApiBridge(): Promise<MissionControlApiBridge> {
+  try {
+    const [health, snapshot, organizationContext, rootWorkContentMap, mockCrawl, activeRecommendations, reviewQueue] = await Promise.all([
+      fetchApiHealth(),
+      fetchApiSnapshot(),
+      fetchOrganizationContext(),
+      fetchRootWorkContentMap(),
+      fetchRootWorkMockCrawl(),
+      fetchActiveRecommendations(),
+      fetchReviewQueue()
+    ]);
+
+    return {
+      connected: true,
+      health,
+      snapshot,
+      organizationContext,
+      rootWorkContentMap,
+      mockCrawl,
+      activeRecommendations,
+      reviewQueue
+    };
+  } catch (error) {
+    return {
+      connected: false,
+      error: error instanceof Error ? error.message : "Unknown TIP API connection error"
+    };
+  }
 }
 
 export function summarizeSnapshot(snapshot: ApiSnapshotResponse): string[] {
