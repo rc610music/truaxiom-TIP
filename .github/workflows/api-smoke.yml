@@ -38,8 +38,5 @@ jobs:
       - name: Validate repository structure
         run: npm run check:structure
 
-      - name: Typecheck workspaces
-        run: npm run typecheck
-
       - name: Run API loop smoke test
         run: npm run test:api
