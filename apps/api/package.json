@@ -1,0 +1,21 @@
+{
+  "name": "@truaxiom/api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "dist/server.js",
+  "types": "dist/server.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "dev": "npm run build && node dist/server.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@truaxiom/core": "*",
+    "@truaxiom/types": "*"
+  },
+  "devDependencies": {
+    "@types/node": "latest"
+  }
+}
