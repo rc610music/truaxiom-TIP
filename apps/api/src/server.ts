@@ -56,7 +56,7 @@ const server = createServer(async (request, response) => {
     return;
   }
 
-  const result = gateway.handle({
+  const result = await gateway.handleAsync({
     method: request.method ?? "GET",
     path: url.pathname,
     query: Object.fromEntries(url.searchParams.entries()),
