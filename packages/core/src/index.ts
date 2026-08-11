@@ -6,3 +6,6 @@ export * from "./recommendations";
 export * from "./rootWorkIngestion";
 export * from "./rootWorkContentMap";
 export * from "./ingestionRunner";
+export * from "./dataAccess";
+export * from "./crawlerAdapter";
+export * from "./missionControlViewState";
