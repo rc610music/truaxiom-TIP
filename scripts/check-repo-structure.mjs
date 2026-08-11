@@ -47,6 +47,7 @@ const requiredPaths = [
   "docs/development/REVIEW_DECISION_REPOSITORY.md",
   "docs/development/API_PERSISTENCE_RUNTIME.md",
   "docs/development/POSTGRES_NEON_BRIDGE.md",
+  "docs/deployment/MISSION_CONTROL_PREVIEW.md",
   "docs/deployment/DEPLOYMENT_TARGETS.md",
   "docs/deployment/SUPABASE_BOOTSTRAP_CHECKLIST.md",
   "docs/architecture/API-0001_API_Gateway.md"
