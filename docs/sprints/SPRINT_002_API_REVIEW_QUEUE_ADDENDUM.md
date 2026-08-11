@@ -63,21 +63,28 @@ The queue turns candidate system output into human-reviewable work:
 
 ---
 
-### API Route
+### API Routes
 
 Added:
 
 ```text
 GET /v1/review-queue
+POST /v1/review-queue/decisions
 ```
 
-This route returns:
+`GET /v1/review-queue` returns:
 
 - review queue,
 - review queue items,
 - review summary.
 
-The API smoke test now includes this route.
+`POST /v1/review-queue/decisions` supports local simulated decisions:
+
+- approve,
+- reject,
+- defer.
+
+The API smoke test now checks both route families.
 
 ---
 
@@ -87,11 +94,45 @@ Mission Control now includes a Review Queue panel showing:
 
 - total review items,
 - items needing review,
+- approved count,
+- deferred count,
 - gap candidates,
 - content candidates,
-- reviewable item list.
+- reviewable item list,
+- Approve / Defer / Reject controls.
+
+Decision controls are enabled only when the local API is connected.
 
 This establishes the human approval layer before live crawling or paid AI providers are enabled.
+
+---
+
+### Local Decision Loop
+
+Added the first operational loop:
+
+```text
+Mission Control button
+  ↓
+POST /v1/review-queue/decisions
+  ↓
+API Gateway
+  ↓
+reviewQueue.applyReviewDecision()
+  ↓
+updated in-memory queue response
+  ↓
+Mission Control refresh
+```
+
+Current decision persistence is intentionally marked:
+
+```text
+mode: local-simulated
+persistence: in-memory-only
+```
+
+This proves workflow behavior without requiring Supabase.
 
 ---
 
@@ -118,6 +159,7 @@ Added:
 ```text
 docs/deployment/DEPLOYMENT_TARGETS.md
 docs/deployment/SUPABASE_BOOTSTRAP_CHECKLIST.md
+docs/development/LOCAL_REVIEW_DECISION_LOOP.md
 ```
 
 These documents keep the project moving while preserving a clean path back to Supabase.
@@ -131,7 +173,8 @@ Continue with the local API bridge until:
 1. the API smoke test passes consistently,
 2. Mission Control reads all major panels through API routes,
 3. the review queue can approve/reject/defer items locally,
-4. Supabase billing is cleared or an alternate persistence layer is selected.
+4. a durable decision repository is added,
+5. Supabase billing is cleared or an alternate persistence layer is selected.
 
 ---
 
