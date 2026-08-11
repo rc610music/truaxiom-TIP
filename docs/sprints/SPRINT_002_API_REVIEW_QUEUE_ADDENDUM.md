@@ -69,6 +69,7 @@ Added:
 
 ```text
 GET /v1/review-queue
+GET /v1/review-queue/decisions
 POST /v1/review-queue/decisions
 ```
 
@@ -78,13 +79,15 @@ POST /v1/review-queue/decisions
 - review queue items,
 - review summary.
 
+`GET /v1/review-queue/decisions` returns locally recorded simulated decisions.
+
 `POST /v1/review-queue/decisions` supports local simulated decisions:
 
 - approve,
 - reject,
 - defer.
 
-The API smoke test now checks both route families.
+The API smoke test now checks review queue read and decision write behavior.
 
 ---
 
@@ -120,6 +123,8 @@ API Gateway
   ↓
 reviewQueue.applyReviewDecision()
   ↓
+reviewDecisionRepository.recordDecision()
+  ↓
 updated in-memory queue response
   ↓
 Mission Control refresh
@@ -129,10 +134,28 @@ Current decision persistence is intentionally marked:
 
 ```text
 mode: local-simulated
-persistence: in-memory-only
+persistence: in-memory-review-decision-repository
 ```
 
 This proves workflow behavior without requiring Supabase.
+
+---
+
+### Review Decision Repository
+
+Added a persistence seam:
+
+```text
+packages/core/src/reviewDecisionRepository.ts
+```
+
+The repository supports:
+
+- `recordDecision`,
+- `listDecisions`,
+- `findDecision`.
+
+Current implementation is in-memory. Future implementations can target Supabase, Neon/Postgres, D1, Turso, or another adapter.
 
 ---
 
@@ -160,6 +183,7 @@ Added:
 docs/deployment/DEPLOYMENT_TARGETS.md
 docs/deployment/SUPABASE_BOOTSTRAP_CHECKLIST.md
 docs/development/LOCAL_REVIEW_DECISION_LOOP.md
+docs/development/REVIEW_DECISION_REPOSITORY.md
 ```
 
 These documents keep the project moving while preserving a clean path back to Supabase.
@@ -173,7 +197,7 @@ Continue with the local API bridge until:
 1. the API smoke test passes consistently,
 2. Mission Control reads all major panels through API routes,
 3. the review queue can approve/reject/defer items locally,
-4. a durable decision repository is added,
+4. the durable decision repository gets a real adapter,
 5. Supabase billing is cleared or an alternate persistence layer is selected.
 
 ---
