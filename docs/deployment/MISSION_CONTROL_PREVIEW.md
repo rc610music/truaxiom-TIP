@@ -1,76 +1,104 @@
-# Mission Control Visual Preview
+# Mission Control Preview
 
-**Status:** Sprint 002 visual access path  
-**Goal:** Give the founder a browser-viewable Mission Control surface instead of only backend tests and repo files.
-
----
-
-## What changed
-
-Mission Control has been converted into a visual-first dashboard that shows:
-
-- API connection state,
-- product / review / extracted-record / recommendation / decision counts,
-- a live system-flow map,
-- runtime and persistence mode,
-- review queue items,
-- Approve / Defer / Reject controls,
-- RootWork intelligence snapshot,
-- next build stage.
+**Status:** Sprint 002 visual preview path  
+**Preview type:** static GitHub Pages build  
+**Primary workflow:** `Mission Control Pages Preview`  
 
 ---
 
-## Preview workflow
+## Purpose
 
-A GitHub Pages workflow now exists:
+This preview exists so the founder can see TIP Mission Control visually without setting up a local development terminal.
+
+The first browser preview is intentionally static fallback mode:
 
 ```text
-.github/workflows/mission-control-pages.yml
+Mission Control UI → static fallback data
 ```
 
-It can be run from:
+That is expected because GitHub Pages hosts static files and does not run the TIP API server.
+
+---
+
+## What the Preview Shows
+
+The visual dashboard shows:
+
+- TIP / Mission Control identity,
+- live/static runtime status,
+- system-flow map,
+- product count,
+- review queue count,
+- RootWork content map snapshot,
+- recommendations,
+- review decision controls,
+- next-stage build checklist.
+
+The review buttons only become live when Mission Control is connected to the API runtime.
+
+---
+
+## How to Run the Preview from GitHub
+
+From the repository:
 
 ```text
-GitHub → Actions → Mission Control Pages Preview → Run workflow
+Actions → Mission Control Pages Preview → Run workflow → main → Run workflow
 ```
 
-If GitHub Pages is enabled for the repo, the workflow should publish the frontend build as a Pages preview.
+If GitHub Pages is enabled and configured for Actions, the workflow deploys a page URL.
 
----
-
-## Important limitation
-
-The Pages preview is a static frontend preview.
-
-That means:
-
-- the UI can be viewed visually in a browser,
-- the local API will not be running inside GitHub Pages,
-- the dashboard will show static fallback unless a public API endpoint is deployed separately.
-
-This is acceptable for the next visual milestone because the goal is to see the Mission Control surface.
-
----
-
-## Next visual milestone
-
-After the static preview is visible, the next step is:
+Expected GitHub Pages URL pattern:
 
 ```text
-Deploy frontend preview
-  ↓
-Deploy API preview
-  ↓
-Point VITE_TIP_API_BASE_URL at API preview
-  ↓
-Test review queue actions in browser
+https://rc610music.github.io/truaxiom-TIP/
 ```
 
 ---
 
-## Recommended path
+## Fallback If Pages Is Not Enabled
 
-1. Use GitHub Pages for first visual confirmation.
-2. Use Cloudflare Pages or Vercel/Netlify for easier environment variables later.
-3. Deploy the API separately only when the visual surface is approved.
-4. Connect Neon/Postgres or Supabase only after the UI workflow feels right.
+The workflow also uploads a downloadable artifact named:
+
+```text
+mission-control-static-preview
+```
+
+Use this if Pages deployment is blocked by repository settings.
+
+The artifact contains the static build from:
+
+```text
+apps/mission-control/dist
+```
+
+---
+
+## Current Limitations
+
+This preview does not run:
+
+- the local API,
+- live crawler actions,
+- persistent database writes,
+- paid AI provider actions.
+
+Those require a deployed API runtime.
+
+---
+
+## Next Stage
+
+After the static preview works, the next stage is:
+
+```text
+Deploy TIP API separately → connect Mission Control to API URL → enable live review queue decisions in-browser
+```
+
+Recommended API deployment target for the next pass:
+
+```text
+Render / Railway / Fly.io / Cloudflare Worker adapter
+```
+
+For simplest short-term validation, use a Node-friendly API host first.
