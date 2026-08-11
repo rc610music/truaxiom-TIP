@@ -73,6 +73,40 @@ Created initial Supabase/PostgreSQL-compatible schema draft:
 
 ---
 
+## Completed in Continued Sprint 002 Pass
+
+### Task + Recommendation Layer
+
+- Extended shared types with `Priority`, `TaskWorkflowStatus`, `Recommendation`, `RecommendationStatus`, `RecommendationType`, `IngestionSource`, and `IngestionRun`.
+- Added open-task handling to Organizational Brain context packets.
+- Added active-recommendation handling to Organizational Brain context packets.
+- Added seeded Sprint 002 task queue.
+- Added seeded recommendations for Mission Control and RootWork ingestion.
+- Added task queue helper functions.
+- Added recommendation helper functions.
+
+### RootWork Ingestion Planning
+
+- Added RootWork ingestion source seed data.
+- Added RootWork content section definitions.
+- Added read-only ingestion plan document.
+- Added RootWork ingestion helper functions.
+
+### Mission Control Update
+
+- Added task and recommendation counts to the overview metrics.
+- Added recommendations panel.
+- Added Sprint 002 task queue panel.
+- Added RootWork ingestion target panel.
+- Updated Mission Control styling for the expanded app shell.
+
+### Developer Documentation
+
+- Added local development instructions.
+- Documented current commands, assumptions, limitations, and next development target.
+
+---
+
 ## Current Sprint 002 Status
 
 Sprint 002 has moved TIP from architecture-only into an initial buildable platform skeleton.
@@ -87,16 +121,28 @@ database/
 docs/
 ```
 
+Mission Control now represents:
+
+- organization context,
+- products,
+- active Sprint 002 work,
+- graph summary,
+- tasks,
+- recommendations,
+- RootWork ingestion sections,
+- activity,
+- and context readiness.
+
 ---
 
 ## Next Build Targets
 
-1. Add local development instructions.
-2. Add first static Mission Control screenshot/preview guidance.
-3. Create initial task/recommendation models.
+1. Add content map schema for RootWork.
+2. Add ingestion run model implementation.
+3. Add first static RootWork content inventory format.
 4. Add data access abstraction layer.
-5. Add RootWork ingestion planning file.
-6. Prepare first run/test instructions.
+5. Add Mission Control view-state model.
+6. Prepare first run/test instructions once the app can be locally verified.
 
 ---
 
