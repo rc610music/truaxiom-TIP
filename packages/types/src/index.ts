@@ -1,6 +1,19 @@
 export type EntityStatus = "planned" | "active" | "paused" | "archived";
 export type ConfidenceStatus = "unknown" | "low" | "medium" | "high" | "verified";
 export type ApprovalStatus = "draft" | "needs_review" | "approved" | "rejected";
+export type Priority = "low" | "medium" | "high" | "critical" | "urgent";
+export type TaskWorkflowStatus = "backlog" | "ready" | "in_progress" | "blocked" | "review" | "done";
+export type RecommendationStatus = "new" | "accepted" | "rejected" | "converted_to_task" | "implemented";
+export type RecommendationType =
+  | "content_gap"
+  | "architecture"
+  | "workflow"
+  | "seo"
+  | "brand"
+  | "product"
+  | "operations"
+  | "risk";
+
 export type RelationshipType =
   | "owns"
   | "contains"
@@ -11,7 +24,10 @@ export type RelationshipType =
   | "measures"
   | "publishes_to"
   | "belongs_to"
-  | "references";
+  | "references"
+  | "creates"
+  | "updates"
+  | "recommends";
 
 export interface BaseEntity {
   id: string;
@@ -41,7 +57,7 @@ export interface Product extends BaseEntity {
 export interface Project extends BaseEntity {
   productId?: string;
   organizationId: string;
-  priority: "low" | "medium" | "high" | "critical";
+  priority: Priority;
   sprint?: string;
   nextAction?: string;
 }
@@ -69,7 +85,7 @@ export interface KnowledgeObject extends BaseEntity {
 
 export interface GraphNode {
   id: string;
-  entityType: "organization" | "product" | "project" | "module" | "agent" | "knowledge" | "task" | "decision" | "activity";
+  entityType: "organization" | "product" | "project" | "module" | "agent" | "knowledge" | "task" | "decision" | "activity" | "recommendation" | "source";
   entityId: string;
   label: string;
   metadata?: Record<string, unknown>;
@@ -89,8 +105,27 @@ export interface Task extends BaseEntity {
   assignedTo?: string;
   productId?: string;
   projectId?: string;
-  priority: "low" | "medium" | "high" | "urgent";
+  recommendationId?: string;
+  priority: Priority;
+  workflowStatus: TaskWorkflowStatus;
   dueDate?: string;
+  acceptanceCriteria?: string[];
+}
+
+export interface Recommendation extends BaseEntity {
+  type: RecommendationType;
+  productId?: string;
+  projectId?: string;
+  agentId?: string;
+  moduleId?: string;
+  priority: Priority;
+  confidence: ConfidenceStatus;
+  recommendationStatus: RecommendationStatus;
+  rationale: string;
+  evidence: string[];
+  expectedImpact: string;
+  nextAction: string;
+  createsTaskIds?: string[];
 }
 
 export interface Decision extends BaseEntity {
@@ -110,6 +145,28 @@ export interface ActivityEvent {
   occurredAt: string;
 }
 
+export interface IngestionSource {
+  id: string;
+  productId: string;
+  label: string;
+  url: string;
+  sourceType: "website" | "cms" | "repository" | "document_store" | "analytics";
+  crawlFrequency: "manual" | "daily" | "weekly" | "event_driven";
+  sections?: string[];
+  enabled: boolean;
+}
+
+export interface IngestionRun {
+  id: string;
+  sourceId: string;
+  startedAt: string;
+  completedAt?: string;
+  status: "queued" | "running" | "completed" | "failed";
+  discoveredItems: number;
+  createdKnowledgeObjects: number;
+  notes?: string[];
+}
+
 export interface OrganizationContextPacket {
   organization: Organization;
   activeProducts: Product[];
@@ -117,6 +174,8 @@ export interface OrganizationContextPacket {
   activeAgents: Agent[];
   installedModules: Module[];
   recentKnowledge: KnowledgeObject[];
+  openTasks: Task[];
+  activeRecommendations: Recommendation[];
   recentActivity: ActivityEvent[];
   graphSummary: {
     nodes: number;
