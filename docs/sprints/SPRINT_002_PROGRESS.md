@@ -287,17 +287,89 @@ Added:
 - Added candidate workflow documentation.
 - Added persistence schema for content map candidate workflows and candidate records.
 
+### Live Crawler + AI Boundaries
+
+- Added live crawler adapter placeholder with safety controls.
+- Added provider-agnostic AI adapter contract.
+- Added recommendation-to-task conversion workflow.
+- Added AI/review database workflow schema.
+- Added documentation for live crawler safety, AI provider boundary, and recommendation-to-task review.
+
+---
+
+## Completed in Server-Side Setup Pass
+
+### API Workspace
+
+Added a new server-side workspace:
+
+```text
+apps/api/
+```
+
+The API uses Node's built-in HTTP server and currently runs in local-static mode.
+
+### API Gateway
+
+Added the TIP API Gateway core with routes for:
+
+- `GET /health`
+- `GET /v1/snapshot`
+- `GET /v1/collections/:collection`
+- `GET /v1/context/organization`
+- `GET /v1/rootwork/content-map`
+- `GET /v1/rootwork/mock-crawl`
+- `GET /v1/recommendations/active`
+
+### Server Runtime
+
+Added server runtime helpers for:
+
+- API host/port configuration,
+- local-static vs Supabase API mode,
+- CORS origin checks,
+- live crawler safety flag,
+- AI provider mode,
+- server readiness notes.
+
+### Bootstrap Snapshot
+
+Added a reusable TIP bootstrap repository snapshot so the API can serve organization, product, task, recommendation, RootWork content map, ingestion, and activity data before Supabase is available.
+
+### Server Scripts
+
+Added root commands:
+
+- `npm run dev:api`
+- `npm run build:api`
+- `npm run start:api`
+
+Updated CI to include API build validation.
+
+### API Runtime Schema
+
+Added `database/006_api_runtime.sql` with API runtime, route, and request-log tables for future Supabase persistence.
+
+### Documentation
+
+Added:
+
+- `docs/development/SERVER_SIDE_SETUP.md`
+- `docs/architecture/API-0001_API_Gateway.md`
+- `apps/api/README.md`
+
 ---
 
 ## Current Sprint 002 Status
 
-Sprint 002 has moved TIP from architecture-only into an initial buildable platform skeleton.
+Sprint 002 has moved TIP from architecture-only into an initial full-stack platform skeleton.
 
 The repository now contains:
 
 ```text
 .github/workflows/
 apps/mission-control/
+apps/api/
 packages/types/
 packages/core/
 database/
@@ -325,25 +397,26 @@ Mission Control now represents:
 - activity,
 - and context readiness.
 
-The platform repository now includes enough structure to support local development, CI validation, mock ingestion, content map review, and future Supabase persistence.
+The platform repository now includes enough structure to support local development, CI validation, local API serving, mock ingestion, content map review, and future Supabase persistence.
 
 ---
 
 ## Next Build Targets
 
-1. Add live crawler adapter placeholder with safety controls.
-2. Add provider-agnostic AI adapter contract.
-3. Add recommendation-to-task conversion workflow.
-4. Add Mission Control review queue model.
-5. Add integration test skeleton.
-6. Add deployment target notes for Cloudflare/Vercel-style hosting.
+1. Add API route tests / smoke-test script.
+2. Add Mission Control API client to consume the local API instead of importing core data directly.
+3. Add review queue model for candidate approvals.
+4. Add deployment target notes for Cloudflare/Vercel-style hosting.
+5. Add Supabase bootstrap checklist for when billing is cleared.
 
 ---
 
 ## Founder Review Notes
 
-The current build is intentionally static and seed-data driven.
+The current build remains safe and local-first.
+
+Supabase project creation is blocked by organization billing, but Sprint 002 can continue because the API and server-side seams now exist in the repository.
 
 The purpose is not full intelligence yet.
 
-The purpose is to create the structural surface where intelligence will be connected, reviewed, and eventually automated.
+The purpose is to create the structural surface where intelligence will be connected, reviewed, persisted, and eventually automated.
