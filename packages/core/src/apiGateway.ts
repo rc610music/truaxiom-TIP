@@ -7,7 +7,13 @@ import { ingestionSources } from "./seed";
 import { getContentMapSummary, getPriorityContentGaps, rootWorkContentMap } from "./rootWorkContentMap";
 import { createContentMapCandidatesFromExtractedRecords, proposeContentGapsFromCandidates } from "./contentMapCandidates";
 import { getActiveRecommendations } from "./recommendations";
-import { buildReviewQueueForMissionControl, summarizeReviewQueue } from "./reviewQueue";
+import {
+  applyReviewDecision,
+  buildReviewQueueForMissionControl,
+  summarizeReviewQueue,
+  type ReviewDecisionAction,
+  type ReviewQueue
+} from "./reviewQueue";
 
 export interface ApiGatewayResponse<T = unknown> {
   status: number;
@@ -33,11 +39,21 @@ const availableRoutes = [
   "GET /v1/rootwork/content-map",
   "GET /v1/rootwork/mock-crawl",
   "GET /v1/recommendations/active",
-  "GET /v1/review-queue"
+  "GET /v1/review-queue",
+  "POST /v1/review-queue/decisions"
 ];
+
+function isReviewDecisionAction(value: unknown): value is ReviewDecisionAction {
+  return value === "approve" || value === "reject" || value === "defer";
+}
+
+function bodyAsRecord(body: unknown): Record<string, unknown> {
+  return body && typeof body === "object" ? body as Record<string, unknown> : {};
+}
 
 export function createTipApiGateway(options: ApiGatewayOptions = {}) {
   const repository = options.repository ?? createInMemoryRepository(createTipBootstrapSnapshot());
+  let latestReviewQueue: ReviewQueue | null = null;
 
   function json<T>(status: number, body: T): ApiGatewayResponse<T> {
     return { status, body };
@@ -60,12 +76,66 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
     };
   }
 
+  function getReviewQueue() {
+    if (latestReviewQueue) return latestReviewQueue;
+
+    const snapshot = repository.snapshot();
+    const packageResult = buildRootWorkCrawlPackage();
+    if (!packageResult) return null;
+
+    latestReviewQueue = buildReviewQueueForMissionControl({
+      candidates: packageResult.candidates,
+      proposedGaps: packageResult.proposedGaps,
+      recommendations: snapshot.recommendations,
+      tasks: snapshot.tasks,
+      extractedRecords: packageResult.crawl.records
+    });
+
+    return latestReviewQueue;
+  }
+
   return {
     repository,
 
     handle(request: ApiGatewayRequest): ApiGatewayResponse {
+      if (request.method === "POST" && request.path === "/v1/review-queue/decisions") {
+        const queue = getReviewQueue();
+        if (!queue) return json(404, { error: "Review queue could not be generated" });
+
+        const body = bodyAsRecord(request.body);
+        const itemId = typeof body.itemId === "string" ? body.itemId : undefined;
+        const action = body.action;
+
+        if (!itemId) {
+          return json(400, { error: "Missing required field: itemId" });
+        }
+
+        if (!isReviewDecisionAction(action)) {
+          return json(400, { error: "Invalid action. Use approve, reject, or defer." });
+        }
+
+        try {
+          const result = applyReviewDecision(queue, {
+            itemId,
+            action,
+            decidedBy: typeof body.decidedBy === "string" ? body.decidedBy : "founder-local",
+            note: typeof body.note === "string" ? body.note : undefined
+          });
+
+          latestReviewQueue = result.queue;
+
+          return json(200, {
+            ...result,
+            mode: "local-simulated",
+            persistence: "in-memory-only"
+          });
+        } catch (error) {
+          return json(404, { error: error instanceof Error ? error.message : "Review decision failed" });
+        }
+      }
+
       if (request.method !== "GET") {
-        return json(405, { error: "Method not allowed", method: request.method });
+        return json(405, { error: "Method not allowed", method: request.method, availableRoutes });
       }
 
       if (request.path === "/health") {
@@ -139,21 +209,14 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
       }
 
       if (request.path === "/v1/review-queue") {
-        const snapshot = repository.snapshot();
-        const packageResult = buildRootWorkCrawlPackage();
-        if (!packageResult) return json(404, { error: "RootWork ingestion source not found" });
-
-        const queue = buildReviewQueueForMissionControl({
-          candidates: packageResult.candidates,
-          proposedGaps: packageResult.proposedGaps,
-          recommendations: snapshot.recommendations,
-          tasks: snapshot.tasks,
-          extractedRecords: packageResult.crawl.records
-        });
+        const queue = getReviewQueue();
+        if (!queue) return json(404, { error: "RootWork ingestion source not found" });
 
         return json(200, {
           queue,
-          summary: summarizeReviewQueue(queue)
+          summary: summarizeReviewQueue(queue),
+          mode: "local-simulated",
+          persistence: "in-memory-only"
         });
       }
 
