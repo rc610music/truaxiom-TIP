@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   activity,
   agents,
@@ -24,6 +25,7 @@ import {
   tasks
 } from "@truaxiom/core";
 import type { GraphEdge, GraphNode } from "@truaxiom/types";
+import { fetchApiHealth, fetchApiSnapshot, getApiBaseUrl, summarizeSnapshot, type ApiHealthResponse } from "./apiClient";
 
 const rootWorkSource = ingestionSources.find((source) => source.id === "SRC-ROOTWORK-WEBSITE");
 const plannedRootWorkRun = rootWorkSource ? planIngestionRun(rootWorkSource) : null;
@@ -121,6 +123,32 @@ const sortedRecommendations = sortRecommendationsForMissionControl(getActiveReco
 const navItems = missionViewState.navItems;
 
 export function App() {
+  const [apiHealth, setApiHealth] = useState<ApiHealthResponse | null>(null);
+  const [apiSummary, setApiSummary] = useState<string[]>([]);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    Promise.all([fetchApiHealth(), fetchApiSnapshot()])
+      .then(([health, snapshot]) => {
+        if (!active) return;
+        setApiHealth(health);
+        setApiSummary(summarizeSnapshot(snapshot));
+        setApiError(null);
+      })
+      .catch((error: Error) => {
+        if (!active) return;
+        setApiHealth(null);
+        setApiSummary([]);
+        setApiError(error.message);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <main className="tip-shell">
       <aside className="sidebar">
@@ -177,6 +205,22 @@ export function App() {
         </section>
 
         <section className="content-grid">
+          <article className="panel">
+            <div className="panel-heading">
+              <p className="eyebrow">Runtime</p>
+              <strong>Local API Bridge</strong>
+            </div>
+            <div className="focus-card">
+              <h3>{apiHealth ? "API Connected" : "Static Fallback Active"}</h3>
+              <p>{apiHealth ? `${apiHealth.service} is running in ${apiHealth.environment} mode.` : "Mission Control is still usable from local seed data while the API is offline."}</p>
+              <small>{apiHealth?.status ?? apiError ?? "waiting for local API"}</small>
+            </div>
+            <div className="mini-metrics api-metrics">
+              <span>{getApiBaseUrl()}</span>
+              {apiSummary.map((note) => <span key={note}>{note}</span>)}
+            </div>
+          </article>
+
           <article className="panel">
             <div className="panel-heading">
               <p className="eyebrow">RootWork</p>
