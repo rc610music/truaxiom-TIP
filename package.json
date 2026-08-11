@@ -11,12 +11,14 @@
   "scripts": {
     "dev": "npm run dev --workspace @truaxiom/mission-control",
     "dev:api": "npm run dev --workspace @truaxiom/api",
+    "dev:full": "echo Run API and Mission Control in separate terminals: npm run dev:api && npm run dev",
     "build": "npm run build --workspaces --if-present",
     "build:api": "npm run build --workspace @truaxiom/api",
     "start:api": "npm run start --workspace @truaxiom/api",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "check:structure": "node scripts/check-repo-structure.mjs",
+    "smoke:api": "node scripts/smoke-api.mjs",
     "ci": "npm run check:structure && npm run typecheck && npm run build:api"
   },
   "engines": {
