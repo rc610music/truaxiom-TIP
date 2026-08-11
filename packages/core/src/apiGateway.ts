@@ -14,6 +14,7 @@ import {
   type ReviewDecisionAction,
   type ReviewQueue
 } from "./reviewQueue";
+import { createInMemoryReviewDecisionRepository, type ReviewDecisionRepository } from "./reviewDecisionRepository";
 
 export interface ApiGatewayResponse<T = unknown> {
   status: number;
@@ -29,6 +30,7 @@ export interface ApiGatewayRequest {
 
 export interface ApiGatewayOptions {
   repository?: TipDataRepository;
+  reviewDecisionRepository?: ReviewDecisionRepository;
 }
 
 const availableRoutes = [
@@ -40,6 +42,7 @@ const availableRoutes = [
   "GET /v1/rootwork/mock-crawl",
   "GET /v1/recommendations/active",
   "GET /v1/review-queue",
+  "GET /v1/review-queue/decisions",
   "POST /v1/review-queue/decisions"
 ];
 
@@ -53,6 +56,7 @@ function bodyAsRecord(body: unknown): Record<string, unknown> {
 
 export function createTipApiGateway(options: ApiGatewayOptions = {}) {
   const repository = options.repository ?? createInMemoryRepository(createTipBootstrapSnapshot());
+  const reviewDecisionRepository = options.reviewDecisionRepository ?? createInMemoryReviewDecisionRepository();
   let latestReviewQueue: ReviewQueue | null = null;
 
   function json<T>(status: number, body: T): ApiGatewayResponse<T> {
@@ -96,8 +100,9 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
 
   return {
     repository,
+    reviewDecisionRepository,
 
-    handle(request: ApiGatewayRequest): ApiGatewayResponse {
+    async handleAsync(request: ApiGatewayRequest): Promise<ApiGatewayResponse> {
       if (request.method === "POST" && request.path === "/v1/review-queue/decisions") {
         const queue = getReviewQueue();
         if (!queue) return json(404, { error: "Review queue could not be generated" });
@@ -122,16 +127,41 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
             note: typeof body.note === "string" ? body.note : undefined
           });
 
+          await reviewDecisionRepository.recordDecision(result.decision);
+          const decisions = await reviewDecisionRepository.listDecisions(queue.id);
           latestReviewQueue = result.queue;
 
           return json(200, {
             ...result,
+            decisions,
             mode: "local-simulated",
-            persistence: "in-memory-only"
+            persistence: "in-memory-review-decision-repository"
           });
         } catch (error) {
           return json(404, { error: error instanceof Error ? error.message : "Review decision failed" });
         }
+      }
+
+      if (request.method === "GET" && request.path === "/v1/review-queue/decisions") {
+        const queue = getReviewQueue();
+        const decisions = await reviewDecisionRepository.listDecisions(queue?.id);
+
+        return json(200, {
+          decisions,
+          count: decisions.length,
+          mode: "local-simulated",
+          persistence: "in-memory-review-decision-repository"
+        });
+      }
+
+      return this.handle(request);
+    },
+
+    handle(request: ApiGatewayRequest): ApiGatewayResponse {
+      if (request.method === "POST" && request.path === "/v1/review-queue/decisions") {
+        return json(409, {
+          error: "Synchronous handler cannot persist async review decisions. Use handleAsync for this route."
+        });
       }
 
       if (request.method !== "GET") {
