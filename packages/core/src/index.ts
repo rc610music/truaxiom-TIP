@@ -19,3 +19,4 @@ export * from "./apiGateway";
 export * from "./serverRuntime";
 export * from "./reviewQueue";
 export * from "./reviewDecisionRepository";
+export * from "./postgresReviewDecisionAdapter";
