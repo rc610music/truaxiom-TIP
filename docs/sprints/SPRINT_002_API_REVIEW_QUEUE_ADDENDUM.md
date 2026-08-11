@@ -159,12 +159,35 @@ Current implementation is in-memory. Future implementations can target Supabase,
 
 ---
 
+### Postgres / Neon Bridge Decision
+
+Selected the most reliable and easiest implementation path:
+
+```text
+local-memory default → generic Postgres adapter seam → Neon temporary bridge → Supabase later
+```
+
+Added:
+
+```text
+packages/core/src/postgresReviewDecisionAdapter.ts
+database/008_postgres_review_decision_adapter.sql
+docs/development/POSTGRES_NEON_BRIDGE.md
+```
+
+This keeps TIP aligned with the existing Postgres/Supabase-shaped schema while avoiding a rewrite into SQLite-style persistence.
+
+Neon is the recommended temporary hosted bridge if Supabase billing stays blocked because it uses standard Postgres connection strings and supports serverless connection pooling.
+
+---
+
 ### Persistence Preparation
 
 Added:
 
 ```text
 database/007_review_queue.sql
+database/008_postgres_review_decision_adapter.sql
 ```
 
 Tables:
@@ -172,6 +195,8 @@ Tables:
 - `review_queues`
 - `review_queue_items`
 - `review_decisions`
+- `review_decision_adapter_runs`
+- `review_decision_adapter_events`
 
 ---
 
@@ -184,6 +209,7 @@ docs/deployment/DEPLOYMENT_TARGETS.md
 docs/deployment/SUPABASE_BOOTSTRAP_CHECKLIST.md
 docs/development/LOCAL_REVIEW_DECISION_LOOP.md
 docs/development/REVIEW_DECISION_REPOSITORY.md
+docs/development/POSTGRES_NEON_BRIDGE.md
 ```
 
 These documents keep the project moving while preserving a clean path back to Supabase.
@@ -197,8 +223,8 @@ Continue with the local API bridge until:
 1. the API smoke test passes consistently,
 2. Mission Control reads all major panels through API routes,
 3. the review queue can approve/reject/defer items locally,
-4. the durable decision repository gets a real adapter,
-5. Supabase billing is cleared or an alternate persistence layer is selected.
+4. the Postgres decision adapter receives a runtime query executor,
+5. Supabase billing is cleared or Neon is selected as the temporary hosted Postgres bridge.
 
 ---
 
