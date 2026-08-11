@@ -7,18 +7,28 @@ const requiredPaths = [
   "apps/mission-control/package.json",
   "apps/mission-control/src/App.tsx",
   "apps/mission-control/src/index.css",
+  "apps/api/package.json",
+  "apps/api/src/server.ts",
   "packages/types/src/index.ts",
   "packages/core/src/index.ts",
   "packages/core/src/seed.ts",
   "packages/core/src/dataAccess.ts",
   "packages/core/src/crawlerAdapter.ts",
   "packages/core/src/rootWorkContentMap.ts",
+  "packages/core/src/apiGateway.ts",
+  "packages/core/src/bootstrapSnapshot.ts",
+  "packages/core/src/serverRuntime.ts",
   "database/schema.sql",
   "database/002_content_ingestion.sql",
   "database/003_data_access_and_crawler.sql",
+  "database/004_supabase_adapter_and_candidates.sql",
+  "database/005_ai_and_review_workflows.sql",
+  "database/006_api_runtime.sql",
   "docs/sprints/SPRINT_001_Foundation.md",
   "docs/sprints/SPRINT_002_Core_Platform_Draft.md",
-  "docs/sprints/SPRINT_002_PROGRESS.md"
+  "docs/sprints/SPRINT_002_PROGRESS.md",
+  "docs/development/SERVER_SIDE_SETUP.md",
+  "docs/architecture/API-0001_API_Gateway.md"
 ];
 
 const missing = requiredPaths.filter((path) => !existsSync(path));
