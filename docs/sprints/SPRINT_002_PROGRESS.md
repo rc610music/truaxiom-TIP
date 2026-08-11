@@ -187,6 +187,72 @@ Added `docs/integrations/ROOTWORK_CONTENT_MAP_SCHEMA.md` documenting the map sch
 
 ---
 
+## Completed in Data Access + Crawler Contract Pass
+
+### Data Access Layer
+
+Added the first platform data access abstraction:
+
+- typed repository snapshot,
+- collection list/read/upsert contract,
+- in-memory repository implementation,
+- repository snapshot summary helper,
+- persistence-ready collection names.
+
+This keeps Mission Control and intelligence modules from coupling directly to the future database implementation.
+
+### Crawler Adapter Contract
+
+Added the first crawler adapter contract:
+
+- crawl request model,
+- extracted content record model,
+- crawl result model,
+- mock RootWork crawler adapter,
+- mock extracted RootWork content fixture,
+- crawl result summary helper.
+
+The adapter is still mock/read-only and does not fetch the live website yet.
+
+### Mission Control View State
+
+Added a Mission Control view-state builder that centralizes:
+
+- navigation items,
+- overview metrics,
+- panel metadata,
+- platform system readiness.
+
+### Mission Control Update
+
+Updated Mission Control to show:
+
+- extracted content record count,
+- mock crawler extracted records,
+- crawl summary pills,
+- platform system readiness stack,
+- additional graph nodes for extracted content.
+
+### Database
+
+Added `database/003_data_access_and_crawler.sql` with tables for:
+
+- repository collections,
+- repository records,
+- crawl requests,
+- extracted content records,
+- crawler adapter contracts.
+
+### Documentation
+
+Added:
+
+- `docs/development/DATA_ACCESS_LAYER.md`
+- `docs/development/CRAWLER_ADAPTER_CONTRACT.md`
+- `docs/architecture/SYS-0010_Ingestion_Engine.md`
+
+---
+
 ## Current Sprint 002 Status
 
 Sprint 002 has moved TIP from architecture-only into an initial buildable platform skeleton.
@@ -198,6 +264,7 @@ apps/mission-control/
 packages/types/
 packages/core/
 database/
+data/fixtures/
 docs/
 ```
 
@@ -214,6 +281,9 @@ Mission Control now represents:
 - content clusters,
 - content gaps,
 - planned ingestion run,
+- mock extracted content records,
+- crawler adapter readiness,
+- data access readiness,
 - activity,
 - and context readiness.
 
@@ -221,11 +291,11 @@ Mission Control now represents:
 
 ## Next Build Targets
 
-1. Add data access abstraction layer.
-2. Add Mission Control view-state model.
-3. Add crawler adapter contract.
-4. Add extracted content record schema.
-5. Add first mock crawler fixture for RootWork.
+1. Add Supabase repository adapter stub.
+2. Add content mapping from extracted records into content map candidates.
+3. Add crawler-to-knowledge conversion workflow.
+4. Add integration test skeleton.
+5. Add first CI workflow for type checking.
 6. Prepare first run/test instructions once local install can be verified.
 
 ---
