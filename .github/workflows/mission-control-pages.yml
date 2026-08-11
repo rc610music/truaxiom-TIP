@@ -1,0 +1,63 @@
+name: Mission Control Pages Preview
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/mission-control/**"
+      - "packages/**"
+      - "package.json"
+      - "tsconfig.base.json"
+      - ".github/workflows/mission-control-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "mission-control-pages"
+  cancel-in-progress: true
+
+jobs:
+  build-preview:
+    name: Build Mission Control preview
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Mission Control
+        env:
+          GITHUB_PAGES: "true"
+          VITE_TIP_API_BASE_URL: "http://127.0.0.1:4310"
+        run: npm run build:mission-control
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/mission-control/dist
+
+  deploy-preview:
+    name: Deploy Mission Control preview
+    needs: build-preview
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
