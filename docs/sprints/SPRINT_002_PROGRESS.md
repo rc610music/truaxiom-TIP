@@ -253,6 +253,42 @@ Added:
 
 ---
 
+## Completed in Setup Automation Pass
+
+### Repository Hygiene
+
+- Added `.gitignore`.
+- Added `.env.example`.
+- Added scripts documentation.
+- Added safe local environment configuration notes.
+
+### Validation + CI
+
+- Added repository structure validation script.
+- Added root `npm run check:structure` command.
+- Added root `npm run ci` command.
+- Added GitHub Actions workflow for install, structure validation, and workspace typecheck.
+
+### Supabase Preparation
+
+- Added Supabase repository adapter stub.
+- Added collection-to-table mapping.
+- Added snapshot seeding helper.
+- Added Supabase readiness helper.
+- Added Supabase adapter documentation.
+- Added persistence schema for adapter bootstrap runs.
+
+### Candidate Workflow
+
+- Added crawler-to-content-map candidate workflow.
+- Added candidate content map item generation.
+- Added candidate gap generation.
+- Added candidate merge helper.
+- Added candidate workflow documentation.
+- Added persistence schema for content map candidate workflows and candidate records.
+
+---
+
 ## Current Sprint 002 Status
 
 Sprint 002 has moved TIP from architecture-only into an initial buildable platform skeleton.
@@ -260,12 +296,14 @@ Sprint 002 has moved TIP from architecture-only into an initial buildable platfo
 The repository now contains:
 
 ```text
+.github/workflows/
 apps/mission-control/
 packages/types/
 packages/core/
 database/
 data/fixtures/
 docs/
+scripts/
 ```
 
 Mission Control now represents:
@@ -287,16 +325,18 @@ Mission Control now represents:
 - activity,
 - and context readiness.
 
+The platform repository now includes enough structure to support local development, CI validation, mock ingestion, content map review, and future Supabase persistence.
+
 ---
 
 ## Next Build Targets
 
-1. Add Supabase repository adapter stub.
-2. Add content mapping from extracted records into content map candidates.
-3. Add crawler-to-knowledge conversion workflow.
-4. Add integration test skeleton.
-5. Add first CI workflow for type checking.
-6. Prepare first run/test instructions once local install can be verified.
+1. Add live crawler adapter placeholder with safety controls.
+2. Add provider-agnostic AI adapter contract.
+3. Add recommendation-to-task conversion workflow.
+4. Add Mission Control review queue model.
+5. Add integration test skeleton.
+6. Add deployment target notes for Cloudflare/Vercel-style hosting.
 
 ---
 
