@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: truaxiom-tip-api
+    runtime: node
+    plan: free
+    branch: main
+    buildCommand: npm install
+    startCommand: npm run start:api
+    healthCheckPath: /health
+    envVars:
+      - key: TIP_ENV
+        value: production
+      - key: TIP_API_MODE
+        value: api
+      - key: TIP_API_HOST
+        value: 0.0.0.0
+      - key: TIP_PERSISTENCE_PROVIDER
+        value: local-memory
+      - key: TIP_CORS_ORIGINS
+        value: https://rc610music.github.io,http://localhost:5173,http://127.0.0.1:5173
+      - key: TIP_ENABLE_LIVE_CRAWLER
+        value: false
+      - key: TIP_AI_PROVIDER
+        value: manual
