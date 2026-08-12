@@ -4,6 +4,7 @@ const requiredPaths = [
   "README.md",
   "package.json",
   "tsconfig.base.json",
+  "render.yaml",
   ".github/workflows/api-smoke.yml",
   ".github/workflows/mission-control-pages.yml",
   "apps/mission-control/package.json",
@@ -48,6 +49,7 @@ const requiredPaths = [
   "docs/development/API_PERSISTENCE_RUNTIME.md",
   "docs/development/POSTGRES_NEON_BRIDGE.md",
   "docs/deployment/MISSION_CONTROL_PREVIEW.md",
+  "docs/deployment/API_PREVIEW_RENDER.md",
   "docs/deployment/DEPLOYMENT_TARGETS.md",
   "docs/deployment/SUPABASE_BOOTSTRAP_CHECKLIST.md",
   "docs/architecture/API-0001_API_Gateway.md"
