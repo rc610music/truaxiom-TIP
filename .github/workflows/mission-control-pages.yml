@@ -41,11 +41,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build Mission Control
+      - name: Build Mission Control static preview
         env:
           GITHUB_PAGES: "true"
           VITE_TIP_API_BASE_URL: "http://127.0.0.1:4310"
-        run: npm run build:mission-control
+        run: npm run build:mission-control-preview
 
       - name: Upload downloadable static preview
         uses: actions/upload-artifact@v4
