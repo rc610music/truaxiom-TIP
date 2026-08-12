@@ -14,11 +14,11 @@
   "dependencies": {
     "@truaxiom/core": "*",
     "@truaxiom/types": "*",
-    "pg": "latest"
+    "pg": "latest",
+    "tsx": "latest"
   },
   "devDependencies": {
     "@types/node": "latest",
-    "@types/pg": "latest",
-    "tsx": "latest"
+    "@types/pg": "latest"
   }
 }
