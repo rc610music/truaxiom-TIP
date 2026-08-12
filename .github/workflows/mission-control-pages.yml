@@ -17,9 +17,9 @@ permissions:
   pages: write
   id-token: write
 
-concurrency:
-  group: "mission-control-pages"
-  cancel-in-progress: true
+env:
+  GITHUB_PAGES: "true"
+  VITE_TIP_API_BASE_URL: "http://127.0.0.1:4310"
 
 jobs:
   build-preview:
@@ -42,10 +42,10 @@ jobs:
         run: npm install
 
       - name: Build Mission Control static preview
-        env:
-          GITHUB_PAGES: "true"
-          VITE_TIP_API_BASE_URL: "http://127.0.0.1:4310"
         run: npm run build:mission-control-preview
+
+      - name: Confirm preview output
+        run: test -f apps/mission-control/dist/index.html && ls -la apps/mission-control/dist
 
       - name: Upload downloadable static preview
         uses: actions/upload-artifact@v4
