@@ -4,8 +4,9 @@ services:
     runtime: node
     plan: free
     branch: main
+    autoDeploy: true
     buildCommand: npm install
-    startCommand: npm run start:api
+    startCommand: npm --workspace @truaxiom/api run start
     healthCheckPath: /health
     envVars:
       - key: TIP_ENV
@@ -17,7 +18,7 @@ services:
       - key: TIP_PERSISTENCE_PROVIDER
         value: local-memory
       - key: TIP_CORS_ORIGINS
-        value: https://rc610music.github.io,http://localhost:5173,http://127.0.0.1:5173
+        value: https://rc610music.github.io,https://rc610music.github.io/truaxiom-TIP,http://localhost:5173,http://127.0.0.1:5173
       - key: TIP_ENABLE_LIVE_CRAWLER
         value: false
       - key: TIP_AI_PROVIDER
