@@ -74,7 +74,7 @@ export interface MissionControlApiBridge {
   reviewQueue?: ApiReviewQueueResponse;
 }
 
-const defaultApiBaseUrl = "http://127.0.0.1:8787";
+const defaultApiBaseUrl = "http://127.0.0.1:4310";
 
 export function getApiBaseUrl(): string {
   return import.meta.env.VITE_TIP_API_BASE_URL || defaultApiBaseUrl;
