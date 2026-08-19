@@ -19,7 +19,7 @@ permissions:
 
 env:
   GITHUB_PAGES: "true"
-  VITE_TIP_API_BASE_URL: "http://127.0.0.1:4310"
+  VITE_TIP_API_BASE_URL: "https://truaxiom-tip-api.onrender.com"
 
 jobs:
   build-preview:
