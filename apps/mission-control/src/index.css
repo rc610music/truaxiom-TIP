@@ -9,6 +9,10 @@
   box-sizing: border-box;
 }
 
+html {
+  background: #070911;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -467,6 +471,7 @@ nav button:hover {
   .visual-sidebar {
     border-right: 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 22px;
   }
 
   nav {
@@ -484,5 +489,113 @@ nav button:hover {
   .decision-actions {
     justify-content: flex-start;
     min-width: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .visual-sidebar {
+    padding: 18px;
+  }
+
+  .brand-lockup {
+    margin-bottom: 22px;
+  }
+
+  .mark {
+    width: 46px;
+    height: 46px;
+    border-radius: 16px;
+  }
+
+  nav {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 8px;
+  }
+
+  nav button {
+    border-radius: 14px;
+    padding: 10px 12px;
+    font-size: 0.92rem;
+  }
+
+  .visual-workspace {
+    padding: 14px;
+  }
+
+  .visual-hero > div:first-child,
+  .connection-orb,
+  .panel {
+    border-radius: 24px;
+    padding: 18px;
+  }
+
+  .visual-hero h1 {
+    font-size: clamp(2.6rem, 15vw, 4.2rem);
+    line-height: 0.9;
+    letter-spacing: -0.085em;
+  }
+
+  .metric-strip article {
+    padding: 16px;
+  }
+
+  .system-flow {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .flow-stage {
+    min-height: auto;
+    padding: 16px;
+  }
+
+  .flow-stage strong {
+    font-size: 1rem;
+  }
+
+  .flow-stage small {
+    display: block;
+    font-size: 0.9rem;
+    line-height: 1.45;
+  }
+
+  .stage-number {
+    width: 30px;
+    height: 30px;
+    margin-bottom: 12px;
+  }
+
+  .split-heading,
+  .status-row,
+  .content-chip {
+    display: grid;
+  }
+
+  .refresh-button,
+  .decision-actions button {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .decision-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 380px) {
+  .visual-sidebar,
+  .visual-workspace {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  nav button {
+    font-size: 0.86rem;
+  }
+
+  .visual-hero h1 {
+    font-size: 2.55rem;
   }
 }
