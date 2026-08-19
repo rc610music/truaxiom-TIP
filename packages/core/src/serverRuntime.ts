@@ -30,7 +30,7 @@ export function readTipServerConfig(env: NodeJS.ProcessEnv = process.env): TipSe
   const persistenceProvider = readPersistenceProvider(env.TIP_PERSISTENCE_PROVIDER);
 
   return {
-    port: Number(env.TIP_API_PORT ?? env.PORT ?? 4310),
+    port: Number(env.PORT ?? env.TIP_API_PORT ?? 4310),
     host: env.TIP_API_HOST ?? "0.0.0.0",
     environment: (env.TIP_ENV as TipServerConfig["environment"]) ?? "local",
     apiMode: (env.TIP_API_MODE as TipServerConfig["apiMode"]) ?? "local-static",
