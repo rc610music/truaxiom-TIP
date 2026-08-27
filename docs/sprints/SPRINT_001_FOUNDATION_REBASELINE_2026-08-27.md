@@ -21,19 +21,18 @@ The repository already contains an earlier architecture-oriented Sprint 001 mark
 - [x] Canonical GitHub repository confirmed.
 - [x] Existing engineering repository structure confirmed.
 - [x] Existing Mission Control shell confirmed as a starting point.
-- [ ] Create one Supabase project named `tip-core`.
-- [ ] Connect the repository to the approved Supabase project.
-- [ ] Reconcile and implement the Identity model.
-- [ ] Reconcile and implement the Registry model.
-- [ ] Reconcile and implement the Agent model.
-- [ ] Reconcile and implement the Workflow model.
+- [x] Adopt a provider-neutral, database-free Sprint 001 foundation.
+- [x] Define the Identity contract as JSON Schema.
+- [x] Define the Registry Entry contract as JSON Schema.
+- [x] Define the Agent Manifest contract as JSON Schema.
+- [x] Define the Workflow Definition contract as JSON Schema.
 - [ ] Align Mission Control with the locked TIP Core / PIE / Registry / Agent Framework boundaries.
 - [ ] Create and verify the Vercel project.
 - [ ] Run schema, build, integration, and deployment validation.
 
-## `tip-core` responsibility
+## Foundation persistence decision
 
-The single Supabase project is intended to host authentication, PostgreSQL data, Registry records, scoped memory, knowledge metadata, workflow state, and later vector storage when semantic search is introduced.
+Sprint 001 uses local seed data, mock fixtures, and the existing in-memory repository. The canonical contracts are independent of Supabase, Neon, Vercel, an ORM, or a UI framework. Persistent PostgreSQL and authentication are deferred until Sprint 002 and must be introduced through adapters.
 
 ## Source-of-truth rule
 
@@ -41,4 +40,4 @@ The locked TIP Architecture Source of Truth and Agent Framework Specification re
 
 ## Immediate next action
 
-Provision `tip-core` under the connected Supabase organization, then inventory the existing type and persistence layers before applying the first schema migration. Do not create or connect a Vercel production deployment until the data model and environment-variable contract are verified.
+Align Mission Control with the locked TIP Core / PIE / Registry / Agent Framework boundaries using the new contracts, then create and verify the Vercel project. Do not provision persistent data infrastructure until a Sprint 002 workflow requires durable multi-user state.

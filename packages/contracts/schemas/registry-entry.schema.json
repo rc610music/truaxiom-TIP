@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.truaxiom.llc/tip/registry-entry/v1",
+  "title": "TIP Registry Entry",
+  "description": "Canonical inventory record answering what exists, who owns it, and how TIP addresses it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "registry_id",
+    "identity",
+    "address",
+    "relationships",
+    "registered_at",
+    "updated_at"
+  ],
+  "properties": {
+    "registry_id": { "type": "string", "minLength": 1 },
+    "identity": { "$ref": "identity.schema.json" },
+    "address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namespace", "slug"],
+      "properties": {
+        "namespace": { "type": "string", "minLength": 1 },
+        "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "canonical_uri": { "type": "string" }
+      }
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["relationship", "target_registry_id"],
+        "properties": {
+          "relationship": {
+            "type": "string",
+            "enum": ["owns", "contains", "depends_on", "supports", "informs", "belongs_to", "references", "exposes", "operated_by"]
+          },
+          "target_registry_id": { "type": "string", "minLength": 1 },
+          "metadata": { "type": "object" }
+        }
+      }
+    },
+    "registered_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}
