@@ -29,15 +29,13 @@ Real keys should never be committed.
 
 ## Required Later
 
-### Supabase
+### Persistent PostgreSQL (Sprint 002)
 
 ```text
-VITE_SUPABASE_URL=
-VITE_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
+DATABASE_URL=
 ```
 
-Needed when the Supabase project is created and database persistence is enabled.
+Not required for Sprint 001. When durable multi-user state is introduced, use a provider-neutral PostgreSQL adapter. Neon through the Vercel Marketplace is the preferred candidate, subject to Sprint 002 validation.
 
 ### Crawler
 

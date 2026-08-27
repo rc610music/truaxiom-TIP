@@ -21,9 +21,12 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "check:structure": "node scripts/check-repo-structure.mjs",
+    "check:contracts": "node scripts/check-foundation-contracts.mjs",
+    "check:foundation": "npm run check:structure && npm run check:contracts && npm run build:mission-control-preview",
     "smoke:api": "node scripts/smoke-api.mjs",
     "test:api": "node scripts/test-api-loop.mjs",
-    "ci": "npm run check:structure && npm run typecheck && npm run build:api"
+    "ci": "npm run check:foundation",
+    "ci:legacy-api": "npm run check:structure && npm run typecheck && npm run build:api"
   },
   "engines": {
     "node": ">=20.0.0"
