@@ -58,6 +58,12 @@ export interface ApiReviewDecisionsResponse {
   persistence?: string;
 }
 
+export interface ApiEcosystemStatusResponse {
+  checkedAt?: string;
+  summary?: Record<string, number>;
+  sources?: Array<Record<string, unknown>>;
+}
+
 export type ReviewDecisionAction = "approve" | "reject" | "defer";
 
 export interface ApiReviewDecisionResponse {
@@ -80,6 +86,7 @@ export interface MissionControlApiBridge {
   activeRecommendations?: unknown[];
   reviewQueue?: ApiReviewQueueResponse;
   reviewDecisions?: ApiReviewDecisionsResponse;
+  ecosystemStatus?: ApiEcosystemStatusResponse;
 }
 
 const defaultApiBaseUrl = "http://127.0.0.1:4310";
@@ -147,6 +154,10 @@ export async function fetchReviewDecisions(): Promise<ApiReviewDecisionsResponse
   return getJson<ApiReviewDecisionsResponse>("/v1/review-queue/decisions");
 }
 
+export async function fetchEcosystemStatus(): Promise<ApiEcosystemStatusResponse> {
+  return getJson<ApiEcosystemStatusResponse>("/v1/ecosystem/status");
+}
+
 export async function decideReviewQueueItem(input: {
   itemId: string;
   action: ReviewDecisionAction;
@@ -160,7 +171,7 @@ export async function decideReviewQueueItem(input: {
 
 export async function loadMissionControlApiBridge(): Promise<MissionControlApiBridge> {
   try {
-    const [health, snapshot, organizationContext, rootWorkContentMap, mockCrawl, activeRecommendations, reviewQueue, reviewDecisions] = await Promise.all([
+    const [health, snapshot, organizationContext, rootWorkContentMap, mockCrawl, activeRecommendations, reviewQueue, reviewDecisions, ecosystemStatus] = await Promise.all([
       fetchApiHealth(),
       fetchApiSnapshot(),
       fetchOrganizationContext(),
@@ -168,7 +179,8 @@ export async function loadMissionControlApiBridge(): Promise<MissionControlApiBr
       fetchRootWorkMockCrawl(),
       fetchActiveRecommendations(),
       fetchReviewQueue(),
-      fetchReviewDecisions()
+      fetchReviewDecisions(),
+      fetchEcosystemStatus()
     ]);
 
     return {
@@ -180,7 +192,8 @@ export async function loadMissionControlApiBridge(): Promise<MissionControlApiBr
       mockCrawl,
       activeRecommendations,
       reviewQueue,
-      reviewDecisions
+      reviewDecisions,
+      ecosystemStatus
     };
   } catch (error) {
     return {

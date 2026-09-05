@@ -8,7 +8,8 @@ const requiredEndpoints = [
   "/v1/rootwork/mock-crawl",
   "/v1/recommendations/active",
   "/v1/review-queue",
-  "/v1/review-queue/decisions"
+  "/v1/review-queue/decisions",
+  "/v1/ecosystem/status"
 ];
 
 async function assertEndpoint(path) {

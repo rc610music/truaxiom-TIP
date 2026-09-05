@@ -120,6 +120,8 @@ export function App() {
     const projects = asArray(snapshot.projects);
     const products = asArray(snapshot.products);
     const readiness = apiBridge.organizationContext?.readiness ?? [];
+    const ecosystemSources = asArray(apiBridge.ecosystemStatus?.sources);
+    const ecosystemSummary = asRecord(apiBridge.ecosystemStatus?.summary);
 
     return {
       organizationName: firstText(organization.name, "TruaXiom"),
@@ -139,7 +141,9 @@ export function App() {
       healthSummary: apiBridge.health?.summary ?? [],
       mode: apiBridge.health?.mode ?? apiBridge.health?.environment ?? "static-fallback",
       persistence: apiBridge.reviewQueue?.persistence ?? apiBridge.health?.persistence ?? "not-connected",
-      reviewMode: apiBridge.reviewQueue?.mode ?? "static-fallback"
+      reviewMode: apiBridge.reviewQueue?.mode ?? "static-fallback",
+      ecosystemSources,
+      ecosystemSummary
     };
   }, [apiBridge]);
 
@@ -189,12 +193,12 @@ export function App() {
         <header className="visual-hero">
           <div className="hero-card">
             <p className="eyebrow">Current Build Stage</p>
-            <h1>Mission Control is coming online.</h1>
+            <h1>Mission Control is online.</h1>
             <p>{view.organizationDescription}</p>
             <div className="hero-actions">
               <span>Frontend visible</span>
-              <span>API bridge prepared</span>
-              <span>Persistence next</span>
+              <span>Live API connected</span>
+              <span>Durable store prepared</span>
             </div>
           </div>
           <div className={`connection-orb ${hasApi ? "online" : "offline"}`}>
@@ -245,6 +249,35 @@ export function App() {
                   <small>{stage.note}</small>
                 </div>
               ))}
+            </div>
+          </article>
+
+          <article className="panel wide operations-panel">
+            <div className="panel-heading split-heading">
+              <div>
+                <p className="eyebrow">Ecosystem Operations</p>
+                <strong>Live registry + source health</strong>
+              </div>
+              <span className="status-pill good">{Number(view.ecosystemSummary.healthy ?? 0)} healthy</span>
+            </div>
+            <div className="source-grid">
+              {view.ecosystemSources.map((source) => {
+                const status = firstText(source.status, "degraded");
+                const primaryLink = firstText(source.publicUrl, firstText(source.sourceUrl, firstText(source.adminUrl, "")));
+                return (
+                  <div className="source-card" key={String(source.id ?? source.name)}>
+                    <div>
+                      <span className={`status-pill ${status === "healthy" ? "good" : status === "authorization_required" ? "warn" : "danger"}`}>{status.replaceAll("_", " ")}</span>
+                      <strong>{firstText(source.name, "Ecosystem source")}</strong>
+                      <small>{firstText(source.kind, "source")} · {Number(source.httpStatus ?? 0) || "auth"}</small>
+                    </div>
+                    <div className="source-actions">
+                      {primaryLink ? <a className="mini-link" href={primaryLink} target="_blank" rel="noreferrer">Open</a> : null}
+                      {source.adminUrl && source.adminUrl !== primaryLink ? <a className="mini-link" href={String(source.adminUrl)} target="_blank" rel="noreferrer">Admin</a> : null}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </article>
 
@@ -358,9 +391,9 @@ export function App() {
               <strong>Make the command deck operational</strong>
             </div>
             <ol className="next-list">
-              <li>Get the Render API deploy green and verify <code>/health</code>.</li>
-              <li>Confirm Mission Control switches from static fallback to API connected.</li>
-              <li>Connect durable persistence through Neon/Postgres or Supabase.</li>
+              <li>Attach the managed Postgres connection to the Render API.</li>
+              <li>Authorize Google Drive for private document ingestion.</li>
+              <li>Promote approved recommendations into executable, logged tasks.</li>
               <li>Turn RootWork ingestion from mock records into controlled live crawling.</li>
             </ol>
           </article>

@@ -426,6 +426,56 @@ nav button:hover {
   margin-bottom: 16px;
 }
 
+.source-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.source-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel-soft);
+}
+
+.source-card strong,
+.source-card small {
+  display: block;
+}
+
+.source-card strong {
+  margin-top: 9px;
+}
+
+.source-card small {
+  margin-top: 3px;
+  color: var(--muted);
+  text-transform: capitalize;
+}
+
+.source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+@media (max-width: 760px) {
+  .source-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .source-card {
+    align-items: flex-start;
+  }
+}
+
 .metric-strip article {
   position: relative;
   overflow: hidden;

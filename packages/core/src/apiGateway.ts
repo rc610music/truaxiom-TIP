@@ -15,6 +15,7 @@ import {
   type ReviewQueue
 } from "./reviewQueue";
 import { createInMemoryReviewDecisionRepository, type ReviewDecisionRepository } from "./reviewDecisionRepository";
+import { getEcosystemStatus } from "./ecosystemRegistry";
 
 export interface ApiGatewayResponse<T = unknown> {
   status: number;
@@ -45,6 +46,7 @@ const availableRoutes = [
   "GET /v1/recommendations/active",
   "GET /v1/review-queue",
   "GET /v1/review-queue/decisions",
+  "GET /v1/ecosystem/status",
   "POST /v1/review-queue/decisions"
 ];
 
@@ -107,6 +109,10 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
     reviewDecisionRepository,
 
     async handleAsync(request: ApiGatewayRequest): Promise<ApiGatewayResponse> {
+      if (request.method === "GET" && request.path === "/v1/ecosystem/status") {
+        return json(200, await getEcosystemStatus());
+      }
+
       if (request.method === "POST" && request.path === "/v1/review-queue/decisions") {
         const queue = getReviewQueue();
         if (!queue) return json(404, { error: "Review queue could not be generated" });

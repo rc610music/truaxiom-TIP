@@ -4,7 +4,8 @@ const env = {
   ...process.env,
   TIP_API_BASE_URL: process.env.TIP_API_BASE_URL || "http://127.0.0.1:4310",
   TIP_API_PORT: process.env.TIP_API_PORT || "4310",
-  TIP_PERSISTENCE_PROVIDER: process.env.TIP_PERSISTENCE_PROVIDER || "local-memory"
+  TIP_PERSISTENCE_PROVIDER: process.env.TIP_PERSISTENCE_PROVIDER || "local-memory",
+  TIP_SOURCE_HEALTH_MODE: process.env.TIP_SOURCE_HEALTH_MODE || "skip"
 };
 
 function run(command, args, options = {}) {
