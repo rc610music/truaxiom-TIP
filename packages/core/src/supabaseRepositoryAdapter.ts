@@ -4,10 +4,12 @@ import type {
   TipRepositorySnapshot
 } from "@truaxiom/types";
 
-type SupabaseSelectQuery = {
+type SupabaseResult = { data: unknown; error: unknown };
+
+type SupabaseSelectQuery = PromiseLike<SupabaseResult> & {
   select(columns?: string): SupabaseSelectQuery;
   eq(column: string, value: string): SupabaseSelectQuery;
-  maybeSingle(): Promise<{ data: unknown; error: unknown }>;
+  maybeSingle(): Promise<SupabaseResult>;
 };
 
 type SupabaseTableQuery = SupabaseSelectQuery & {
@@ -68,14 +70,14 @@ export function createSupabaseRepositoryAdapter(
     provider: "supabase",
     tableFor,
 
-    async list<T>(collection) {
+    async list<T>(collection: DataCollectionName): Promise<DataAccessResult<T[]>> {
       const table = tableFor(collection);
       const { data, error } = await client.from(table).select("*");
       if (error) return failure<T[]>(String(error));
       return success((data ?? []) as T[]);
     },
 
-    async findById<T>(collection, id) {
+    async findById<T>(collection: DataCollectionName, id: string): Promise<DataAccessResult<T>> {
       const table = tableFor(collection);
       const { data, error } = await client.from(table).select("*").eq("id", id).maybeSingle();
       if (error) return failure<T>(String(error));
@@ -83,7 +85,7 @@ export function createSupabaseRepositoryAdapter(
       return success(data as T);
     },
 
-    async upsert<T extends { id: string }>(collection, record) {
+    async upsert<T extends { id: string }>(collection: DataCollectionName, record: T): Promise<DataAccessResult<T>> {
       const table = tableFor(collection);
       const { error } = await client.from(table).upsert(record, { onConflict: "id" });
       if (error) return failure<T>(String(error));
@@ -123,7 +125,7 @@ export async function seedSupabaseFromSnapshot(
 
     for (const record of records) {
       const result = await adapter.upsert(collection, record);
-      if (!result.ok) return failure(result.error);
+      if (!result.ok) return failure(result.error ?? `Failed to seed ${collection}/${record.id}`);
       insertedRecords += 1;
     }
   }

@@ -15,10 +15,9 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "baseUrl": ".",
     "paths": {
-      "@truaxiom/types": ["packages/types/src/index.ts"],
-      "@truaxiom/core": ["packages/core/src/index.ts"]
+      "@truaxiom/types": ["./packages/types/src/index.ts"],
+      "@truaxiom/core": ["./packages/core/src/index.ts"]
     }
   }
 }

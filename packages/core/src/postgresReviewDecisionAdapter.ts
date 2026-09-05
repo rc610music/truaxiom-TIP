@@ -9,11 +9,11 @@ export interface PostgresReviewDecisionAdapterOptions {
   provider?: "neon" | "supabase" | "postgres";
 }
 
-export const reviewDecisionTableName = "review_decisions";
+export const reviewDecisionTableName = "tip_review_decisions";
 
 export const postgresReviewDecisionSql = {
   insertDecision: `
-    insert into review_decisions (
+    insert into tip_review_decisions (
       id,
       queue_id,
       item_id,
@@ -21,10 +21,10 @@ export const postgresReviewDecisionSql = {
       decided_by,
       note,
       decided_at,
-      previous_status,
-      next_status,
+      resulting_status,
+      mode,
       metadata
-    ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
+    ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
     on conflict (id) do update set
       queue_id = excluded.queue_id,
       item_id = excluded.item_id,
@@ -32,20 +32,20 @@ export const postgresReviewDecisionSql = {
       decided_by = excluded.decided_by,
       note = excluded.note,
       decided_at = excluded.decided_at,
-      previous_status = excluded.previous_status,
-      next_status = excluded.next_status,
+      resulting_status = excluded.resulting_status,
+      mode = excluded.mode,
       metadata = excluded.metadata
     returning *;
   `,
   listDecisions: `
     select *
-    from review_decisions
+    from tip_review_decisions
     where ($1::text is null or queue_id = $1)
     order by decided_at desc;
   `,
   findDecision: `
     select *
-    from review_decisions
+    from tip_review_decisions
     where id = $1
     limit 1;
   `
@@ -60,8 +60,8 @@ function rowToReviewDecision(row: Record<string, unknown>): ReviewDecision {
     decidedBy: String(row.decided_by),
     note: typeof row.note === "string" ? row.note : undefined,
     decidedAt: String(row.decided_at),
-    previousStatus: row.previous_status as ReviewDecision["previousStatus"],
-    nextStatus: row.next_status as ReviewDecision["nextStatus"]
+    resultingStatus: row.resulting_status as ReviewDecision["resultingStatus"],
+    mode: row.mode as ReviewDecision["mode"]
   };
 }
 
@@ -74,8 +74,8 @@ function decisionToParams(decision: ReviewDecision) {
     decision.decidedBy,
     decision.note ?? null,
     decision.decidedAt,
-    decision.previousStatus,
-    decision.nextStatus,
+    decision.resultingStatus,
+    decision.mode,
     JSON.stringify({ source: "tip-review-decision-adapter" })
   ];
 }

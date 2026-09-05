@@ -66,8 +66,8 @@ export function createContentMapCandidates(records: ExtractedContentRecord[]): C
     productId: record.productId,
     title: record.title,
     url: record.canonicalUrl ?? record.url,
-    proposedType: record.detectedType,
-    proposedIntent: record.detectedIntent,
+    proposedType: record.detectedType ?? "page",
+    proposedIntent: record.detectedIntent ?? "awareness",
     proposedSection: inferSection(record),
     primaryTopic: record.detectedTopics[0] ?? "unclassified",
     secondaryTopics: record.detectedTopics.slice(1),
@@ -76,6 +76,10 @@ export function createContentMapCandidates(records: ExtractedContentRecord[]): C
     status: inferConfidence(record) === "high" ? "candidate" : "needs_review"
   }));
 }
+
+// Keep the ingestion-facing name explicit while preserving the shorter public
+// helper used by the original content-map workflow.
+export const createContentMapCandidatesFromExtractedRecords = createContentMapCandidates;
 
 export function createContentItemsFromCandidates(candidates: ContentMapCandidate[]): ContentMapItem[] {
   return candidates.map((candidate) => ({
@@ -98,7 +102,10 @@ export function createContentItemsFromCandidates(candidates: ContentMapCandidate
   }));
 }
 
-export function proposeContentGapsFromCandidates(candidates: ContentMapCandidate[]): ContentGap[] {
+export function proposeContentGapsFromCandidates(
+  candidates: ContentMapCandidate[],
+  fallbackProductId = "PROD-ROOTWORK"
+): ContentGap[] {
   const gaps: ContentGap[] = [];
   const sections = new Set(candidates.map((candidate) => candidate.proposedSection));
   const hasConversion = candidates.some((candidate) => candidate.proposedIntent === "conversion");
@@ -107,7 +114,7 @@ export function proposeContentGapsFromCandidates(candidates: ContentMapCandidate
   if (!sections.has("wisdom")) {
     gaps.push({
       id: "GAP-CANDIDATE-WISDOM-MISSING",
-      productId: candidates[0]?.productId ?? "PROD-ROOTWORK",
+      productId: candidates[0]?.productId ?? fallbackProductId,
       gapType: "missing_topic",
       title: "Wisdom section not detected in crawl candidates",
       description: "The crawler candidate workflow did not detect a Wisdom / blog section. This may indicate a crawler path issue or missing content inventory.",
@@ -122,7 +129,7 @@ export function proposeContentGapsFromCandidates(candidates: ContentMapCandidate
   if (!hasConversion) {
     gaps.push({
       id: "GAP-CANDIDATE-CONVERSION-MISSING",
-      productId: candidates[0]?.productId ?? "PROD-ROOTWORK",
+      productId: candidates[0]?.productId ?? fallbackProductId,
       gapType: "weak_conversion",
       title: "No conversion-intent page detected",
       description: "The candidate workflow did not identify a conversion-oriented page or offer path.",
@@ -137,7 +144,7 @@ export function proposeContentGapsFromCandidates(candidates: ContentMapCandidate
   if (needsReview.length > 0) {
     gaps.push({
       id: "GAP-CANDIDATE-REVIEW-QUEUE",
-      productId: candidates[0]?.productId ?? "PROD-ROOTWORK",
+      productId: candidates[0]?.productId ?? fallbackProductId,
       gapType: "brand_alignment",
       title: "Candidate content needs human review",
       description: `${needsReview.length} candidate item(s) need review before being treated as reliable organizational knowledge.`,

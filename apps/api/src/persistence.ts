@@ -49,11 +49,35 @@ export function createApiPersistenceRuntime(config: TipServerConfig): ApiPersist
 
   const pool = createPool(config);
   const provider = config.persistenceProvider === "neon" ? "neon" : config.persistenceProvider === "supabase" ? "supabase" : "postgres";
+  let schemaReady: Promise<void> | undefined;
+
+  function ensureSchema() {
+    schemaReady ??= pool.query(`
+      create table if not exists tip_review_decisions (
+        id text primary key,
+        queue_id text not null,
+        item_id text not null,
+        action text not null check (action in ('approve', 'reject', 'defer')),
+        decided_by text not null,
+        note text,
+        decided_at timestamptz not null,
+        resulting_status text not null,
+        mode text not null default 'persistent',
+        metadata jsonb not null default '{}'::jsonb,
+        created_at timestamptz not null default now()
+      );
+      create index if not exists idx_tip_review_decisions_queue
+        on tip_review_decisions(queue_id, decided_at desc);
+    `).then(() => undefined);
+
+    return schemaReady;
+  }
 
   const reviewDecisionRepository = createPostgresReviewDecisionRepository({
     provider,
     connectionString: config.databaseUrl,
     async query(sql, params = []) {
+      await ensureSchema();
       const result = await pool.query(sql, params as any[]);
       return result.rows;
     }

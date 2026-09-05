@@ -35,7 +35,7 @@ export function createInMemoryRepository(initialSnapshot: TipRepositorySnapshot)
     },
 
     list<T>(collection: DataCollectionName): DataAccessResult<T[]> {
-      const records = state[collection] as T[] | undefined;
+      const records = state[collection] as unknown as T[] | undefined;
       if (!records) return failure<T[]>(`Unknown collection: ${collection}`);
       return success(structuredClone(records));
     },
@@ -51,7 +51,7 @@ export function createInMemoryRepository(initialSnapshot: TipRepositorySnapshot)
     },
 
     upsert<T extends { id: string }>(collection: DataCollectionName, record: T): DataAccessResult<T> {
-      const records = state[collection] as T[] | undefined;
+      const records = state[collection] as unknown as T[] | undefined;
       if (!records) return failure<T>(`Unknown collection: ${collection}`);
 
       const existingIndex = records.findIndex((item) => item.id === record.id);

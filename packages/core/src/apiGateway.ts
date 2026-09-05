@@ -131,6 +131,10 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
             note: typeof body.note === "string" ? body.note : undefined
           });
 
+          if (!persistenceLabel.startsWith("in-memory")) {
+            result.decision.mode = "persistent";
+          }
+
           await reviewDecisionRepository.recordDecision(result.decision);
           const decisions = await reviewDecisionRepository.listDecisions(queue.id);
           latestReviewQueue = result.queue;

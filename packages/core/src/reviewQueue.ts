@@ -112,7 +112,7 @@ export function buildReviewQueueForMissionControl(input: {
     id: `REV-${candidate.id}`,
     type: "content_map_candidate",
     title: candidate.title,
-    description: `Review extracted ${candidate.type} candidate for ${candidate.section}.`,
+    description: `Review extracted ${candidate.proposedType} candidate for ${candidate.proposedSection}.`,
     status: "needs_review",
     priority: "medium",
     source: "crawler-to-content-map",
@@ -121,8 +121,8 @@ export function buildReviewQueueForMissionControl(input: {
     recommendedAction: "Approve, edit, or reject this candidate before it becomes part of the official content map.",
     evidence: [
       `Detected topic: ${candidate.primaryTopic}`,
-      `Detected intent: ${candidate.intent}`,
-      `Source record: ${candidate.sourceRecordId}`
+      `Detected intent: ${candidate.proposedIntent}`,
+      `Source record: ${candidate.extractedRecordId}`
     ],
     createdAt: generatedAt
   }));
@@ -177,7 +177,7 @@ export function buildReviewQueueForMissionControl(input: {
     }));
 
   const extractedItemsWithoutCandidates = input.extractedRecords
-    .filter((record) => !input.candidates.some((candidate) => candidate.sourceRecordId === record.id))
+    .filter((record) => !input.candidates.some((candidate) => candidate.extractedRecordId === record.id))
     .map((record) => ({
       id: `REV-${record.id}`,
       type: "content_map_candidate" as const,

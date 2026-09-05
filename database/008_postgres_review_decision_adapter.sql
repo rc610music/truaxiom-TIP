@@ -1,6 +1,23 @@
 -- SPRINT 002 — Postgres review decision adapter support
 -- Target: Neon now / Supabase Postgres later
 
+create table if not exists tip_review_decisions (
+  id text primary key,
+  queue_id text not null,
+  item_id text not null,
+  action text not null check (action in ('approve', 'reject', 'defer')),
+  decided_by text not null,
+  note text,
+  decided_at timestamptz not null,
+  resulting_status text not null,
+  mode text not null default 'persistent',
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_tip_review_decisions_queue
+  on tip_review_decisions(queue_id, decided_at desc);
+
 create table if not exists review_decision_adapter_runs (
   id text primary key,
   provider text not null default 'postgres',
