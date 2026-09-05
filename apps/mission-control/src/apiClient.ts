@@ -3,6 +3,7 @@ export interface ApiHealthResponse {
   service: string;
   environment: string;
   mode?: string;
+  persistence?: string;
   timestamp: string;
   summary?: string[];
   availableRoutes?: string[];
@@ -51,6 +52,12 @@ export interface ApiReviewQueueResponse {
   persistence?: string;
 }
 
+export interface ApiReviewDecisionsResponse {
+  decisions?: unknown[];
+  mode?: string;
+  persistence?: string;
+}
+
 export type ReviewDecisionAction = "approve" | "reject" | "defer";
 
 export interface ApiReviewDecisionResponse {
@@ -72,6 +79,7 @@ export interface MissionControlApiBridge {
   mockCrawl?: ApiMockCrawlResponse;
   activeRecommendations?: unknown[];
   reviewQueue?: ApiReviewQueueResponse;
+  reviewDecisions?: ApiReviewDecisionsResponse;
 }
 
 const defaultApiBaseUrl = "http://127.0.0.1:4310";
@@ -135,6 +143,10 @@ export async function fetchReviewQueue(): Promise<ApiReviewQueueResponse> {
   return getJson<ApiReviewQueueResponse>("/v1/review-queue");
 }
 
+export async function fetchReviewDecisions(): Promise<ApiReviewDecisionsResponse> {
+  return getJson<ApiReviewDecisionsResponse>("/v1/review-queue/decisions");
+}
+
 export async function decideReviewQueueItem(input: {
   itemId: string;
   action: ReviewDecisionAction;
@@ -148,14 +160,15 @@ export async function decideReviewQueueItem(input: {
 
 export async function loadMissionControlApiBridge(): Promise<MissionControlApiBridge> {
   try {
-    const [health, snapshot, organizationContext, rootWorkContentMap, mockCrawl, activeRecommendations, reviewQueue] = await Promise.all([
+    const [health, snapshot, organizationContext, rootWorkContentMap, mockCrawl, activeRecommendations, reviewQueue, reviewDecisions] = await Promise.all([
       fetchApiHealth(),
       fetchApiSnapshot(),
       fetchOrganizationContext(),
       fetchRootWorkContentMap(),
       fetchRootWorkMockCrawl(),
       fetchActiveRecommendations(),
-      fetchReviewQueue()
+      fetchReviewQueue(),
+      fetchReviewDecisions()
     ]);
 
     return {
@@ -166,7 +179,8 @@ export async function loadMissionControlApiBridge(): Promise<MissionControlApiBr
       rootWorkContentMap,
       mockCrawl,
       activeRecommendations,
-      reviewQueue
+      reviewQueue,
+      reviewDecisions
     };
   } catch (error) {
     return {
