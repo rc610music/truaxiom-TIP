@@ -11,31 +11,40 @@ type LooseRecord = Record<string, any>;
 
 const defaultBridge: MissionControlApiBridge = { connected: false };
 
+const navItems = [
+  "Command Deck",
+  "System Map",
+  "Review Queue",
+  "RootWork Intel",
+  "Runtime",
+  "Next Build"
+];
+
 const pipelineStages = [
   {
-    label: "Sources",
-    title: "RootWork + TruaXiom data",
-    note: "Seed data, future websites, docs, repos, analytics, and connected tools."
+    label: "Capture",
+    title: "Sources flow in",
+    note: "Websites, docs, repos, analytics, messages, product notes, and future connected tools."
   },
   {
-    label: "API",
-    title: "TIP local gateway",
-    note: "Routes requests, serves the current snapshot, and keeps the UI decoupled from storage."
+    label: "Route",
+    title: "TIP API gateway",
+    note: "The API becomes the controlled doorway between Mission Control and platform intelligence."
   },
   {
-    label: "Intelligence",
-    title: "Content map + recommendations",
-    note: "Organizes extracted records into reviewable gaps, tasks, and next moves."
+    label: "Understand",
+    title: "Knowledge + context",
+    note: "Records become content maps, project state, recommendations, and next-action candidates."
   },
   {
-    label: "Review",
-    title: "Founder approval layer",
-    note: "Approve, defer, or reject before anything becomes permanent or automated."
+    label: "Decide",
+    title: "Founder approval",
+    note: "Approve, defer, or reject before anything becomes permanent, published, or automated."
   },
   {
-    label: "Persistence",
-    title: "Local now, Postgres next",
-    note: "Local memory today; Neon/Postgres or Supabase when a connection string is ready."
+    label: "Remember",
+    title: "Durable intelligence",
+    note: "Local memory today. Neon/Postgres or Supabase next when persistence is connected."
   }
 ];
 
@@ -45,10 +54,6 @@ function asRecord(value: unknown): LooseRecord {
 
 function asArray(value: unknown): LooseRecord[] {
   return Array.isArray(value) ? value as LooseRecord[] : [];
-}
-
-function count(value: unknown): number {
-  return Array.isArray(value) ? value.length : 0;
 }
 
 function firstText(value: unknown, fallback: string): string {
@@ -65,7 +70,7 @@ function statusTone(status: unknown) {
 
 export function App() {
   const [apiBridge, setApiBridge] = useState<MissionControlApiBridge>(defaultBridge);
-  const [decisionMessage, setDecisionMessage] = useState("Run the local API to activate review decisions.");
+  const [decisionMessage, setDecisionMessage] = useState("Connect the API to activate review decisions from the browser.");
   const [activeDecisionItemId, setActiveDecisionItemId] = useState<string | null>(null);
 
   const refreshApiBridge = useCallback(async () => {
@@ -86,10 +91,10 @@ export function App() {
       const result = await decideReviewQueueItem({
         itemId,
         action,
-        note: `Mission Control visual dashboard ${action} action.`
+        note: `Mission Control dashboard ${action} action.`
       });
 
-      setDecisionMessage(`${result.item?.title ?? itemId} marked ${result.decision?.resultingStatus ?? action}.`);
+      setDecisionMessage(`${firstText(result.item?.title, itemId)} marked ${firstText(result.decision?.resultingStatus, action)}.`);
       await refreshApiBridge();
     } catch (error) {
       setDecisionMessage(error instanceof Error ? error.message : "Review decision failed.");
@@ -133,13 +138,15 @@ export function App() {
       contentSummary,
       healthSummary: apiBridge.health?.summary ?? [],
       mode: apiBridge.health?.mode ?? apiBridge.health?.environment ?? "static-fallback",
-      persistence: apiBridge.reviewQueue?.persistence ?? "not-connected",
+      persistence: apiBridge.reviewQueue?.persistence ?? apiBridge.health?.persistence ?? "not-connected",
       reviewMode: apiBridge.reviewQueue?.mode ?? "static-fallback"
     };
   }, [apiBridge]);
 
-  const visibleReviewItems = view.reviewItems.slice(0, 6);
+  const visibleReviewItems = view.reviewItems.slice(0, 5);
   const hasApi = apiBridge.connected;
+  const apiBaseUrl = getApiBaseUrl();
+  const reviewNeedCount = Number(view.reviewSummary.needsReview ?? view.reviewItems.length);
 
   return (
     <main className="tip-dashboard">
@@ -147,66 +154,87 @@ export function App() {
         <div className="brand-lockup">
           <span className="mark">TIP</span>
           <div>
-            <strong>Mission Control</strong>
-            <small>Visual build preview</small>
+            <strong>TruaXiom Mission Control</strong>
+            <small>Command deck preview</small>
           </div>
         </div>
 
-        <nav>
-          {[
-            "System Map",
-            "Review Queue",
-            "RootWork Intelligence",
-            "Runtime",
-            "Next Build"
-          ].map((item, index) => (
+        <nav aria-label="Mission Control sections">
+          {navItems.map((item, index) => (
             <button key={item} className={index === 0 ? "active" : ""}>{item}</button>
           ))}
         </nav>
+
+        <div className="sidebar-status">
+          <span className={`status-dot ${hasApi ? "online" : "offline"}`} />
+          <div>
+            <strong>{hasApi ? "API connected" : "Static fallback"}</strong>
+            <small>{hasApi ? "Live bridge active" : "Waiting on Render API"}</small>
+          </div>
+        </div>
       </aside>
 
       <section className="visual-workspace">
-        <header className="visual-hero">
+        <div className="command-bar">
           <div>
+            <span>TIP / Sprint 002</span>
+            <strong>{view.organizationName} Intelligence Platform</strong>
+          </div>
+          <div className="command-bar-actions">
+            <span className={`status-pill ${hasApi ? "good" : "warn"}`}>{hasApi ? "Live API" : "Preview Mode"}</span>
+            <a className="mini-link" href={`${apiBaseUrl}/health`} target="_blank" rel="noreferrer">API Health</a>
+          </div>
+        </div>
+
+        <header className="visual-hero">
+          <div className="hero-card">
             <p className="eyebrow">Current Build Stage</p>
-            <h1>TIP is becoming visible.</h1>
+            <h1>Mission Control is coming online.</h1>
             <p>{view.organizationDescription}</p>
+            <div className="hero-actions">
+              <span>Frontend visible</span>
+              <span>API bridge prepared</span>
+              <span>Persistence next</span>
+            </div>
           </div>
           <div className={`connection-orb ${hasApi ? "online" : "offline"}`}>
             <span>{hasApi ? "ONLINE" : "STATIC"}</span>
             <strong>{hasApi ? "API Connected" : "Fallback View"}</strong>
-            <small>{getApiBaseUrl()}</small>
+            <small>{apiBaseUrl}</small>
           </div>
         </header>
 
-        <section className="metric-strip">
+        <section className="metric-strip" aria-label="Mission Control metrics">
           <article>
             <span>{view.products.length}</span>
-            <p>Products</p>
+            <p>Products mapped</p>
           </article>
           <article>
-            <span>{view.reviewItems.length}</span>
-            <p>Review Items</p>
+            <span>{reviewNeedCount}</span>
+            <p>Needs review</p>
           </article>
           <article>
             <span>{view.extractedRecords.length}</span>
-            <p>Extracted Records</p>
+            <p>Records captured</p>
           </article>
           <article>
             <span>{view.recommendations.length}</span>
-            <p>Recommendations</p>
+            <p>Next moves</p>
           </article>
           <article>
             <span>{view.decisions.length}</span>
-            <p>Decisions</p>
+            <p>Decisions logged</p>
           </article>
         </section>
 
         <section className="visual-grid">
-          <article className="panel wide">
-            <div className="panel-heading">
-              <p className="eyebrow">Live System Map</p>
-              <strong>What we actually built so far</strong>
+          <article className="panel wide system-panel">
+            <div className="panel-heading split-heading">
+              <div>
+                <p className="eyebrow">Live System Map</p>
+                <strong>How TIP turns scattered work into command-center intelligence</strong>
+              </div>
+              <span className="status-pill active">Foundation loop</span>
             </div>
             <div className="system-flow">
               {pipelineStages.map((stage, index) => (
@@ -220,7 +248,48 @@ export function App() {
             </div>
           </article>
 
-          <article className="panel">
+          <article className="panel review-panel priority-panel">
+            <div className="panel-heading split-heading">
+              <div>
+                <p className="eyebrow">Human Approval Layer</p>
+                <strong>Review Queue</strong>
+              </div>
+              <button className="refresh-button" onClick={() => void refreshApiBridge()}>Refresh</button>
+            </div>
+            <div className="mini-metrics">
+              <span>{Number(view.reviewSummary.total ?? view.reviewItems.length)} total</span>
+              <span>{reviewNeedCount} needs review</span>
+              <span>{Number(view.reviewSummary.approved ?? 0)} approved</span>
+              <span>{Number(view.reviewSummary.deferred ?? 0)} deferred</span>
+            </div>
+            <div className="decision-note">{decisionMessage}</div>
+            <div className="stack">
+              {visibleReviewItems.length === 0 ? (
+                <div className="empty-card">Deploy or start the API to load the review queue.</div>
+              ) : visibleReviewItems.map((item) => {
+                const itemId = String(item.id ?? item.title);
+                const status = firstText(item.status, "needs_review");
+                const canDecide = hasApi && status !== "approved" && status !== "rejected";
+
+                return (
+                  <div className="review-card" key={itemId}>
+                    <div className="review-card-main">
+                      <span className={`status-pill ${statusTone(status)}`}>{status.replace("_", " ")}</span>
+                      <strong>{firstText(item.title, "Review item")}</strong>
+                      <p>{firstText(item.description, firstText(item.recommendedAction, "Review this item before it moves forward."))}</p>
+                    </div>
+                    <div className="decision-actions">
+                      <button disabled={!canDecide || activeDecisionItemId === itemId} onClick={() => handleReviewDecision(itemId, "approve")}>Approve</button>
+                      <button disabled={!canDecide || activeDecisionItemId === itemId} onClick={() => handleReviewDecision(itemId, "defer")}>Defer</button>
+                      <button className="danger" disabled={!canDecide || activeDecisionItemId === itemId} onClick={() => handleReviewDecision(itemId, "reject")}>Reject</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </article>
+
+          <article className="panel runtime-panel">
             <div className="panel-heading">
               <p className="eyebrow">Runtime</p>
               <strong>Engine status</strong>
@@ -239,53 +308,12 @@ export function App() {
                 <strong>{view.persistence}</strong>
               </div>
               <div className="status-row">
-                <span>Review Mode</span>
+                <span>Review</span>
                 <strong>{view.reviewMode}</strong>
               </div>
             </div>
-            <div className="mini-metrics">
-              {view.healthSummary.slice(0, 4).map((note) => <span key={note}>{note}</span>)}
-            </div>
-          </article>
-
-          <article className="panel review-panel">
-            <div className="panel-heading split-heading">
-              <div>
-                <p className="eyebrow">Human Approval Layer</p>
-                <strong>Review Queue</strong>
-              </div>
-              <button className="refresh-button" onClick={() => void refreshApiBridge()}>Refresh</button>
-            </div>
-            <div className="mini-metrics">
-              <span>{Number(view.reviewSummary.total ?? view.reviewItems.length)} total</span>
-              <span>{Number(view.reviewSummary.needsReview ?? view.reviewItems.length)} needs review</span>
-              <span>{Number(view.reviewSummary.approved ?? 0)} approved</span>
-              <span>{Number(view.reviewSummary.deferred ?? 0)} deferred</span>
-            </div>
-            <div className="decision-note">{decisionMessage}</div>
-            <div className="stack">
-              {visibleReviewItems.length === 0 ? (
-                <div className="empty-card">Start the local API to load the review queue.</div>
-              ) : visibleReviewItems.map((item) => {
-                const itemId = String(item.id ?? item.title);
-                const status = firstText(item.status, "needs_review");
-                const canDecide = hasApi && status !== "approved" && status !== "rejected";
-
-                return (
-                  <div className="review-card" key={itemId}>
-                    <div className="review-card-main">
-                      <span className={`status-pill ${statusTone(status)}`}>{status}</span>
-                      <strong>{firstText(item.title, "Review item")}</strong>
-                      <p>{firstText(item.description, firstText(item.recommendedAction, "Review this item before it moves forward."))}</p>
-                    </div>
-                    <div className="decision-actions">
-                      <button disabled={!canDecide || activeDecisionItemId === itemId} onClick={() => handleReviewDecision(itemId, "approve")}>Approve</button>
-                      <button disabled={!canDecide || activeDecisionItemId === itemId} onClick={() => handleReviewDecision(itemId, "defer")}>Defer</button>
-                      <button className="danger" disabled={!canDecide || activeDecisionItemId === itemId} onClick={() => handleReviewDecision(itemId, "reject")}>Reject</button>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="mini-metrics vertical">
+              {(view.healthSummary.length ? view.healthSummary : [apiBridge.error ?? "Render API is not connected yet."]).slice(0, 4).map((note) => <span key={note}>{note}</span>)}
             </div>
           </article>
 
@@ -327,12 +355,12 @@ export function App() {
           <article className="panel next-panel">
             <div className="panel-heading">
               <p className="eyebrow">Next Stage</p>
-              <strong>Make it accessible</strong>
+              <strong>Make the command deck operational</strong>
             </div>
             <ol className="next-list">
-              <li>Publish a visual preview so you can open Mission Control in a browser.</li>
-              <li>Keep the local API/review loop underneath it.</li>
-              <li>Connect durable persistence once Neon or Supabase is ready.</li>
+              <li>Get the Render API deploy green and verify <code>/health</code>.</li>
+              <li>Confirm Mission Control switches from static fallback to API connected.</li>
+              <li>Connect durable persistence through Neon/Postgres or Supabase.</li>
               <li>Turn RootWork ingestion from mock records into controlled live crawling.</li>
             </ol>
           </article>
