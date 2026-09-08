@@ -248,6 +248,30 @@ export function applyReviewDecision(queue: ReviewQueue, input: ReviewDecisionInp
   };
 }
 
+export function applyPersistedReviewDecisions(queue: ReviewQueue, decisions: ReviewDecision[]): ReviewQueue {
+  const latestByItem = new Map<string, ReviewDecision>();
+
+  for (const decision of decisions) {
+    const current = latestByItem.get(decision.itemId);
+    if (!current || Date.parse(decision.decidedAt) > Date.parse(current.decidedAt)) {
+      latestByItem.set(decision.itemId, decision);
+    }
+  }
+
+  const items = queue.items.map((item) => {
+    const decision = latestByItem.get(item.id);
+    return decision ? { ...item, status: decision.resultingStatus } : item;
+  });
+  const summary = summarizeItems(items);
+
+  return {
+    ...queue,
+    status: summary.needsReview > 0 ? "open" : "cleared",
+    items,
+    summary
+  };
+}
+
 export function summarizeReviewQueue(queue: ReviewQueue): string[] {
   return [
     `${queue.summary.total} total review item(s)`,

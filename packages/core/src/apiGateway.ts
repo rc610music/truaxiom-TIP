@@ -8,6 +8,7 @@ import { getContentMapSummary, getPriorityContentGaps, rootWorkContentMap } from
 import { createContentMapCandidatesFromExtractedRecords, proposeContentGapsFromCandidates } from "./contentMapCandidates";
 import { getActiveRecommendations } from "./recommendations";
 import {
+  applyPersistedReviewDecisions,
   applyReviewDecision,
   buildReviewQueueForMissionControl,
   summarizeReviewQueue,
@@ -104,6 +105,15 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
     return latestReviewQueue;
   }
 
+  async function getHydratedReviewQueue() {
+    const queue = getReviewQueue();
+    if (!queue) return null;
+
+    const decisions = await reviewDecisionRepository.listDecisions(queue.id);
+    latestReviewQueue = applyPersistedReviewDecisions(queue, decisions);
+    return latestReviewQueue;
+  }
+
   return {
     repository,
     reviewDecisionRepository,
@@ -113,8 +123,20 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
         return json(200, await getEcosystemStatus());
       }
 
+      if (request.method === "GET" && request.path === "/v1/review-queue") {
+        const queue = await getHydratedReviewQueue();
+        if (!queue) return json(404, { error: "RootWork ingestion source not found" });
+
+        return json(200, {
+          queue,
+          summary: summarizeReviewQueue(queue),
+          mode: modeLabel,
+          persistence: persistenceLabel
+        });
+      }
+
       if (request.method === "POST" && request.path === "/v1/review-queue/decisions") {
-        const queue = getReviewQueue();
+        const queue = await getHydratedReviewQueue();
         if (!queue) return json(404, { error: "Review queue could not be generated" });
 
         const body = bodyAsRecord(request.body);

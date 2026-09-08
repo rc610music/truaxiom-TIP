@@ -1,7 +1,9 @@
 import {
+  applyPersistedReviewDecisions,
+  buildReviewQueueForMissionControl,
   createPostgresReviewDecisionRepository,
   postgresReviewDecisionSql
-} from "../packages/core/src/postgresReviewDecisionAdapter.ts";
+} from "../packages/core/src/index.ts";
 
 const executed = [];
 const repository = createPostgresReviewDecisionRepository({
@@ -42,6 +44,31 @@ if (!postgresReviewDecisionSql.insertDecision.includes("$10::jsonb")) {
 
 if (executed[0]?.params.length !== 10) {
   throw new Error(`Expected 10 decision parameters, received ${executed[0]?.params.length ?? 0}.`);
+}
+
+const queue = buildReviewQueueForMissionControl({
+  candidates: [],
+  proposedGaps: [],
+  recommendations: [],
+  extractedRecords: [],
+  tasks: [{
+    id: "TASK-TEST",
+    name: "Persistence hydration",
+    description: "Verify persisted decisions update queue state.",
+    taskType: "review",
+    priority: "high",
+    workflowStatus: "ready",
+    createdAt: "2026-09-08T00:00:00.000Z",
+    updatedAt: "2026-09-08T00:00:00.000Z"
+  }]
+});
+const hydrated = applyPersistedReviewDecisions(queue, [{
+  ...decision,
+  itemId: "REV-TASK-TEST"
+}]);
+
+if (hydrated.items[0]?.status !== "deferred" || hydrated.summary.deferred !== 1) {
+  throw new Error("Persisted decisions must hydrate the review queue item and summary state.");
 }
 
 console.log("TIP Postgres adapter contract test passed.");
