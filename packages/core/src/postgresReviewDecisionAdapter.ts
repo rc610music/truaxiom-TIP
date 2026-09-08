@@ -24,7 +24,7 @@ export const postgresReviewDecisionSql = {
       resulting_status,
       mode,
       metadata
-    ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
+    ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
     on conflict (id) do update set
       queue_id = excluded.queue_id,
       item_id = excluded.item_id,
@@ -120,6 +120,8 @@ export function describePostgresReviewDecisionAdapter(options: PostgresReviewDec
   return [
     `Review decisions are prepared for ${provider} Postgres persistence.`,
     "Use DATABASE_URL or NEON_DATABASE_URL for Neon now; Supabase can use the same Postgres-shaped adapter later.",
-    "The adapter is inactive until a query executor is supplied by the runtime."
+    options.query
+      ? "The runtime query executor is active."
+      : "The adapter is inactive until a query executor is supplied by the runtime."
   ];
 }
