@@ -26,6 +26,7 @@
     "smoke:api": "node scripts/smoke-api.mjs",
     "test:api": "node scripts/test-api-loop.mjs",
     "test:postgres-adapter": "node --import tsx scripts/test-postgres-adapter.mjs",
+    "test:registry": "node --import tsx scripts/test-registry-adapter.mjs",
     "ci": "npm run check:foundation",
     "ci:legacy-api": "npm run check:structure && npm run typecheck && npm run build:api"
   },

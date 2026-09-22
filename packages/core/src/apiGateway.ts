@@ -17,6 +17,7 @@ import {
 } from "./reviewQueue";
 import { createInMemoryReviewDecisionRepository, type ReviewDecisionRepository } from "./reviewDecisionRepository";
 import { getEcosystemStatus } from "./ecosystemRegistry";
+import { registryV1Version } from "./registryV1";
 
 export interface ApiGatewayResponse<T = unknown> {
   status: number;
@@ -30,17 +31,28 @@ export interface ApiGatewayRequest {
   body?: unknown;
 }
 
+export type RegistrySource = "postgres" | "neon" | "supabase" | "in-memory-seed";
+
+export interface RegistryMeta {
+  version: typeof registryV1Version;
+  source: RegistrySource;
+  configuredProvider?: RegistrySource;
+  error?: string;
+}
+
 export interface ApiGatewayOptions {
   repository?: TipDataRepository;
   reviewDecisionRepository?: ReviewDecisionRepository;
   modeLabel?: string;
   persistenceLabel?: string;
+  registryMeta?: RegistryMeta;
 }
 
 const availableRoutes = [
   "GET /health",
   "GET /v1/snapshot",
   "GET /v1/collections/:collection",
+  "GET /v1/registry",
   "GET /v1/context/organization",
   "GET /v1/rootwork/content-map",
   "GET /v1/rootwork/mock-crawl",
@@ -50,6 +62,54 @@ const availableRoutes = [
   "GET /v1/ecosystem/status",
   "POST /v1/review-queue/decisions"
 ];
+
+const seedCollections = [
+  "modules",
+  "agents",
+  "knowledgeObjects",
+  "tasks",
+  "recommendations",
+  "ingestionSources",
+  "contentMaps",
+  "graphNodes",
+  "graphEdges",
+  "activity"
+] as const;
+
+function registryStore(source: RegistrySource): "postgres" | "in-memory-seed" {
+  switch (source) {
+    case "postgres":
+    case "neon":
+    case "supabase":
+      return "postgres";
+    case "in-memory-seed":
+      return "in-memory-seed";
+    default: {
+      const unreachable: never = source;
+      return unreachable;
+    }
+  }
+}
+
+function buildPersistenceMap(registrySource: RegistrySource, persistenceLabel: string): Record<string, string> {
+  const registry = registryStore(registrySource);
+  const reviewDecisions = persistenceLabel.startsWith("in-memory") ? "in-memory" : "postgres";
+  const map: Record<string, string> = {
+    organizations: registry,
+    products: registry,
+    projects: registry,
+    reviewDecisions,
+    ecosystemStatus: "live-http-check",
+    rootWorkContentMap: "in-memory-seed",
+    rootWorkMockCrawl: "in-memory-seed"
+  };
+
+  for (const collection of seedCollections) {
+    map[collection] = "in-memory-seed";
+  }
+
+  return map;
+}
 
 function isReviewDecisionAction(value: unknown): value is ReviewDecisionAction {
   return value === "approve" || value === "reject" || value === "defer";
@@ -64,7 +124,77 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
   const reviewDecisionRepository = options.reviewDecisionRepository ?? createInMemoryReviewDecisionRepository();
   const modeLabel = options.modeLabel ?? "local-simulated";
   const persistenceLabel = options.persistenceLabel ?? "in-memory-review-decision-repository";
+  const registryMeta: RegistryMeta = options.registryMeta ?? {
+    version: registryV1Version,
+    source: "in-memory-seed"
+  };
   let latestReviewQueue: ReviewQueue | null = null;
+
+  function registryPayload() {
+    const snapshot = repository.snapshot();
+    return {
+      version: registryMeta.version,
+      source: registryMeta.source,
+      configuredProvider: registryMeta.configuredProvider ?? registryMeta.source,
+      error: registryMeta.error,
+      idPolicy: "ORG-TRUAXIOM, PROD-*, and PRJ-* ids are shared with Command Center. TIP Core is the only intelligence core.",
+      tables: registryStore(registryMeta.source) === "postgres"
+        ? ["organizations", "products", "projects"]
+        : [],
+      counts: {
+        organizations: snapshot.organizations.length,
+        products: snapshot.products.length,
+        projects: snapshot.projects.length
+      },
+      organizations: snapshot.organizations,
+      products: snapshot.products,
+      projects: snapshot.projects
+    };
+  }
+
+  async function healthPayload() {
+    const snapshot = repository.snapshot();
+    let reviewDecisionCount: number | null = null;
+    let reviewDecisionError: string | undefined;
+
+    try {
+      reviewDecisionCount = (await reviewDecisionRepository.listDecisions()).length;
+    } catch (error) {
+      reviewDecisionError = error instanceof Error ? error.message : "Review decision count failed";
+    }
+
+    const registry = registryPayload();
+    const persistenceMap = buildPersistenceMap(registryMeta.source, persistenceLabel);
+
+    return {
+      status: "ok",
+      service: "TIP API Gateway",
+      environment: modeLabel,
+      mode: modeLabel,
+      persistence: persistenceLabel,
+      timestamp: new Date().toISOString(),
+      summary: describeRepositorySnapshot(snapshot),
+      summarySources: [
+        persistenceMap.organizations,
+        persistenceMap.products,
+        persistenceMap.projects,
+        persistenceMap.knowledgeObjects,
+        persistenceMap.tasks,
+        persistenceMap.recommendations,
+        persistenceMap.ingestionSources,
+        persistenceMap.contentMaps
+      ],
+      registry,
+      persistenceMap,
+      reviewDecisions: {
+        source: persistenceMap.reviewDecisions,
+        table: persistenceMap.reviewDecisions === "postgres" ? "tip_review_decisions" : null,
+        count: reviewDecisionCount,
+        error: reviewDecisionError
+      },
+      availableRoutes
+    };
+  }
 
   function json<T>(status: number, body: T): ApiGatewayResponse<T> {
     return { status, body };
@@ -119,6 +249,14 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
     reviewDecisionRepository,
 
     async handleAsync(request: ApiGatewayRequest): Promise<ApiGatewayResponse> {
+      if (request.method === "GET" && request.path === "/health") {
+        return json(200, await healthPayload());
+      }
+
+      if (request.method === "GET" && request.path === "/v1/registry") {
+        return json(200, registryPayload());
+      }
+
       if (request.method === "GET" && request.path === "/v1/ecosystem/status") {
         return json(200, await getEcosystemStatus());
       }
@@ -209,6 +347,8 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
 
       if (request.path === "/health") {
         const snapshot = repository.snapshot();
+        const registry = registryPayload();
+        const persistenceMap = buildPersistenceMap(registryMeta.source, persistenceLabel);
         return json(200, {
           status: "ok",
           service: "TIP API Gateway",
@@ -217,8 +357,29 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
           persistence: persistenceLabel,
           timestamp: new Date().toISOString(),
           summary: describeRepositorySnapshot(snapshot),
+          summarySources: [
+            persistenceMap.organizations,
+            persistenceMap.products,
+            persistenceMap.projects,
+            persistenceMap.knowledgeObjects,
+            persistenceMap.tasks,
+            persistenceMap.recommendations,
+            persistenceMap.ingestionSources,
+            persistenceMap.contentMaps
+          ],
+          registry,
+          persistenceMap,
+          reviewDecisions: {
+            source: persistenceMap.reviewDecisions,
+            table: persistenceMap.reviewDecisions === "postgres" ? "tip_review_decisions" : null,
+            count: null
+          },
           availableRoutes
         });
+      }
+
+      if (request.path === "/v1/registry") {
+        return json(200, registryPayload());
       }
 
       if (request.path === "/v1/snapshot") {

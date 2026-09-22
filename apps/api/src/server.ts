@@ -1,13 +1,38 @@
 import { createServer } from "node:http";
-import { createTipApiGateway, describeServerReadiness, isOriginAllowed, readTipServerConfig } from "@truaxiom/core";
+import {
+  createInMemoryRepository,
+  createTipApiGateway,
+  createTipBootstrapSnapshot,
+  describeServerReadiness,
+  isOriginAllowed,
+  overlayRegistryOnSnapshot,
+  readTipServerConfig,
+  registryV1Version
+} from "@truaxiom/core";
 import { createApiPersistenceRuntime } from "./persistence";
 
 const config = readTipServerConfig();
 const persistence = createApiPersistenceRuntime(config);
+const registryLoad = await persistence.loadRegistry();
+
+if (registryLoad.error) {
+  console.error(`Registry v1 stayed on the in-memory seed: ${registryLoad.error}`);
+}
+
+const snapshot = registryLoad.records
+  ? overlayRegistryOnSnapshot(createTipBootstrapSnapshot(), registryLoad.records)
+  : createTipBootstrapSnapshot();
 const gateway = createTipApiGateway({
+  repository: createInMemoryRepository(snapshot),
   reviewDecisionRepository: persistence.reviewDecisionRepository,
   modeLabel: config.apiMode,
-  persistenceLabel: persistence.persistenceLabel
+  persistenceLabel: persistence.persistenceLabel,
+  registryMeta: {
+    version: registryV1Version,
+    source: registryLoad.source,
+    configuredProvider: registryLoad.configuredProvider,
+    error: registryLoad.error
+  }
 });
 
 function sendJson(response: import("node:http").ServerResponse, status: number, body: unknown, origin?: string) {

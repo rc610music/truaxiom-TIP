@@ -123,7 +123,7 @@ Priority order for database URL resolution:
 
 ## Safety Boundary
 
-The runtime only controls review-decision persistence.
+The runtime controls review-decision persistence and Registry v1 organization, product, and project rows. See `PERSISTENCE_MAP.md` for the seed-versus-Postgres map.
 
 It does not enable:
 

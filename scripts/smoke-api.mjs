@@ -7,6 +7,7 @@ const requiredEndpoints = [
   "/v1/rootwork/content-map",
   "/v1/rootwork/mock-crawl",
   "/v1/recommendations/active",
+  "/v1/registry",
   "/v1/review-queue",
   "/v1/review-queue/decisions",
   "/v1/ecosystem/status"
@@ -76,6 +77,9 @@ try {
   for (const endpoint of requiredEndpoints) {
     const result = await assertEndpoint(endpoint);
     if (endpoint === "/v1/review-queue") reviewQueue = result.body;
+    if (endpoint === "/v1/registry" && result.body?.version !== "v1") {
+      throw new Error("/v1/registry did not report Registry v1.");
+    }
     console.log(`✓ ${endpoint}`);
   }
 
