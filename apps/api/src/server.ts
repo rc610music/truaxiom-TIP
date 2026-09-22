@@ -25,6 +25,7 @@ const snapshot = registryLoad.records
 const gateway = createTipApiGateway({
   repository: createInMemoryRepository(snapshot),
   reviewDecisionRepository: persistence.reviewDecisionRepository,
+  approvalTaskRepository: persistence.approvalTaskRepository,
   modeLabel: config.apiMode,
   persistenceLabel: persistence.persistenceLabel,
   registryMeta: {
@@ -34,6 +35,15 @@ const gateway = createTipApiGateway({
     error: registryLoad.error
   }
 });
+
+try {
+  const replayed = await gateway.replayApprovedRecommendationTasks();
+  if (replayed.length > 0) {
+    console.log(`Replayed ${replayed.length} approved recommendation(s) into durable tasks.`);
+  }
+} catch (error) {
+  console.error(`Approved recommendation replay failed: ${error instanceof Error ? error.message : error}`);
+}
 
 function sendJson(response: import("node:http").ServerResponse, status: number, body: unknown, origin?: string) {
   const payload = JSON.stringify(body, null, 2);

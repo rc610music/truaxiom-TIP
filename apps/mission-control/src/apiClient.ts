@@ -6,7 +6,13 @@ export interface ApiHealthResponse {
   persistence?: string;
   timestamp: string;
   summary?: string[];
+  summarySources?: string[];
   availableRoutes?: string[];
+  tasks?: {
+    source?: string;
+    table?: string | null;
+    durableCount?: number;
+  };
 }
 
 export interface ApiSnapshotResponse {
@@ -88,6 +94,7 @@ export interface ApiReviewDecisionResponse {
   summary?: string[];
   mode?: string;
   persistence?: string;
+  task?: Record<string, unknown>;
 }
 
 export interface MissionControlApiBridge {

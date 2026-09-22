@@ -94,7 +94,11 @@ export function App() {
         note: `Mission Control dashboard ${action} action.`
       });
 
-      setDecisionMessage(`${firstText(result.item?.title, itemId)} marked ${firstText(result.decision?.resultingStatus, action)}.`);
+      const task = asRecord(result.task);
+      const taskNote = typeof task.id === "string"
+        ? ` Task ${task.id} is ${firstText(task.workflowStatus, "open")} on ${firstText(task.projectId, "its registry project")}.`
+        : "";
+      setDecisionMessage(`${firstText(result.item?.title, itemId)} marked ${firstText(result.decision?.resultingStatus, action)}.${taskNote}`);
       await refreshApiBridge();
     } catch (error) {
       setDecisionMessage(error instanceof Error ? error.message : "Review decision failed.");
@@ -133,6 +137,7 @@ export function App() {
       products,
       projects,
       tasks,
+      approvalTasks: tasks.filter((task) => task.workflow || String(task.id ?? "").startsWith("TASK-FROM-")),
       recommendations,
       contentItems,
       extractedRecords,
@@ -384,6 +389,10 @@ export function App() {
                 <span>Review</span>
                 <strong>{view.reviewMode}</strong>
               </div>
+              <div className="status-row">
+                <span>Tasks</span>
+                <strong>{firstText(apiBridge.health?.tasks?.source, "in-memory-seed")} · {Number(apiBridge.health?.tasks?.durableCount ?? 0)} durable</strong>
+              </div>
             </div>
             <div className="mini-metrics vertical">
               {(view.healthSummary.length ? view.healthSummary : [apiBridge.error ?? "Render API is not connected yet."]).slice(0, 4).map((note) => <span key={note}>{note}</span>)}
@@ -422,6 +431,19 @@ export function App() {
                   <p>{firstText(item.expectedImpact, firstText(item.rationale, "Recommendation awaiting context."))}</p>
                 </div>
               ))}
+              {view.approvalTasks.slice(0, 4).map((task) => {
+                const workflow = asRecord(task.workflow);
+                const evidence = Array.isArray(task.evidence) ? task.evidence.map(String) : [];
+                return (
+                  <div className="focus-card" key={String(task.id)}>
+                    <strong>{firstText(task.name, "Approved task")}</strong>
+                    <p>
+                      {String(task.id)} · {firstText(task.projectId, "registry project pending")} · {firstText(task.assignedTo, "unassigned")} · {firstText(workflow.status, firstText(task.workflowStatus, "ready"))}
+                    </p>
+                    {evidence[0] ? <p>{evidence[0]}</p> : null}
+                  </div>
+                );
+              })}
             </div>
           </article>
 
