@@ -1,3 +1,11 @@
+import { timingSafeEqual } from "node:crypto";
+
+export interface OperatorAuthConfig {
+  required: boolean;
+  secret?: string;
+  actor: string;
+}
+
 export interface TipServerConfig {
   port: number;
   host: string;
@@ -9,6 +17,7 @@ export interface TipServerConfig {
   corsOrigins: string[];
   liveCrawlerEnabled: boolean;
   aiProvider: "manual" | "openai" | "other";
+  operatorAuth: OperatorAuthConfig;
 }
 
 function readCsv(value: string | undefined, fallback: string[]): string[] {
@@ -26,6 +35,30 @@ function readPostgresSslMode(value: string | undefined): TipServerConfig["postgr
   return "auto";
 }
 
+export function readOperatorAuth(env: NodeJS.ProcessEnv = process.env): OperatorAuthConfig {
+  const secret = env.TIP_OPERATOR_SECRET?.trim() || undefined;
+  const actor = env.TIP_OPERATOR_ACTOR?.trim() || "operator";
+  const persistenceProvider = readPersistenceProvider(env.TIP_PERSISTENCE_PROVIDER);
+  const production = env.TIP_ENV === "production";
+  const durableProvider = persistenceProvider !== "local-memory";
+
+  return {
+    required: Boolean(secret) || production || durableProvider,
+    secret,
+    actor
+  };
+}
+
+export function operatorSecretsMatch(presented: string, expected: string): boolean {
+  const left = Buffer.from(presented);
+  const right = Buffer.from(expected);
+  if (left.length !== right.length) {
+    timingSafeEqual(right, right);
+    return false;
+  }
+  return timingSafeEqual(left, right);
+}
+
 export function readTipServerConfig(env: NodeJS.ProcessEnv = process.env): TipServerConfig {
   const persistenceProvider = readPersistenceProvider(env.TIP_PERSISTENCE_PROVIDER);
 
@@ -39,7 +72,8 @@ export function readTipServerConfig(env: NodeJS.ProcessEnv = process.env): TipSe
     postgresSslMode: readPostgresSslMode(env.POSTGRES_SSL_MODE),
     corsOrigins: readCsv(env.TIP_CORS_ORIGINS, ["http://localhost:5173", "http://127.0.0.1:5173"]),
     liveCrawlerEnabled: env.TIP_ENABLE_LIVE_CRAWLER === "true",
-    aiProvider: (env.TIP_AI_PROVIDER as TipServerConfig["aiProvider"]) ?? "manual"
+    aiProvider: (env.TIP_AI_PROVIDER as TipServerConfig["aiProvider"]) ?? "manual",
+    operatorAuth: readOperatorAuth(env)
   };
 }
 
@@ -63,6 +97,14 @@ export function describeServerReadiness(config: TipServerConfig): string[] {
 
   if (!config.liveCrawlerEnabled) {
     notes.push("Live crawling remains disabled by default for safety.");
+  }
+
+  if (!config.operatorAuth.required) {
+    notes.push("Review decision writes are open for local-memory until TIP_OPERATOR_SECRET is set.");
+  } else if (config.operatorAuth.secret) {
+    notes.push("Review decision writes require the operator secret.");
+  } else {
+    notes.push("Review decision writes are fail-closed until TIP_OPERATOR_SECRET is set.");
   }
 
   return notes;

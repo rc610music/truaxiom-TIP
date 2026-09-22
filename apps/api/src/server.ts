@@ -26,6 +26,8 @@ const gateway = createTipApiGateway({
   repository: createInMemoryRepository(snapshot),
   reviewDecisionRepository: persistence.reviewDecisionRepository,
   approvalTaskRepository: persistence.approvalTaskRepository,
+  approvedContentRepository: persistence.approvedContentRepository,
+  operatorAuth: config.operatorAuth,
   modeLabel: config.apiMode,
   persistenceLabel: persistence.persistenceLabel,
   registryMeta: {
@@ -45,6 +47,15 @@ try {
   console.error(`Approved recommendation replay failed: ${error instanceof Error ? error.message : error}`);
 }
 
+try {
+  const replayedContent = await gateway.replayApprovedContentRecords();
+  if (replayedContent.length > 0) {
+    console.log(`Replayed ${replayedContent.length} approved content candidate(s) into durable records.`);
+  }
+} catch (error) {
+  console.error(`Approved content replay failed: ${error instanceof Error ? error.message : error}`);
+}
+
 function sendJson(response: import("node:http").ServerResponse, status: number, body: unknown, origin?: string) {
   const payload = JSON.stringify(body, null, 2);
   response.writeHead(status, {
@@ -52,7 +63,7 @@ function sendJson(response: import("node:http").ServerResponse, status: number, 
     "Content-Length": Buffer.byteLength(payload),
     "Access-Control-Allow-Origin": origin && isOriginAllowed(origin, config) ? origin : config.corsOrigins[0] ?? "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization"
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Tip-Operator-Secret"
   });
   response.end(payload);
 }
@@ -101,6 +112,10 @@ const server = createServer(async (request, response) => {
     method: request.method ?? "GET",
     path: url.pathname,
     query: Object.fromEntries(url.searchParams.entries()),
+    headers: {
+      authorization: typeof request.headers.authorization === "string" ? request.headers.authorization : undefined,
+      "x-tip-operator-secret": typeof request.headers["x-tip-operator-secret"] === "string" ? request.headers["x-tip-operator-secret"] : undefined
+    },
     body
   });
 

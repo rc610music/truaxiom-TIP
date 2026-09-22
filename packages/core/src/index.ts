@@ -15,6 +15,7 @@ export * from "./liveCrawlerAdapter";
 export * from "./aiProviderAdapter";
 export * from "./recommendationToTask";
 export * from "./approvalTaskBridge";
+export * from "./approvedContentRecord";
 export * from "./postgresTaskAdapter";
 export * from "./bootstrapSnapshot";
 export * from "./apiGateway";

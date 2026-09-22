@@ -87,13 +87,14 @@ The blueprint sets safe preview values:
 TIP_ENV=production
 TIP_API_MODE=api
 TIP_API_HOST=0.0.0.0
-TIP_PERSISTENCE_PROVIDER=local-memory
+TIP_PERSISTENCE_PROVIDER=postgres
 TIP_CORS_ORIGINS=https://rc610music.github.io,http://localhost:5173,http://127.0.0.1:5173
 TIP_ENABLE_LIVE_CRAWLER=false
 TIP_AI_PROVIDER=manual
+TIP_OPERATOR_ACTOR=operator
 ```
 
-Do not set `TIP_API_PORT` on Render. Render supplies `PORT`, and the API reads that automatically.
+Do not set `TIP_API_PORT` on Render. Render supplies `PORT`, and the API reads that automatically. Keep `DATABASE_URL` or `NEON_DATABASE_URL`, and `TIP_OPERATOR_SECRET`, in the dashboard. The blueprint marks the operator secret `sync: false` and does not store its value.
 
 ---
 

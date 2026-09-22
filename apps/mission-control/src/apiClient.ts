@@ -13,6 +13,12 @@ export interface ApiHealthResponse {
     table?: string | null;
     durableCount?: number;
   };
+  approvedContentRecords?: {
+    source?: string;
+    table?: string | null;
+    durableCount?: number;
+    workflowId?: string;
+  };
 }
 
 export interface ApiSnapshotResponse {
@@ -95,6 +101,15 @@ export interface ApiReviewDecisionResponse {
   mode?: string;
   persistence?: string;
   task?: Record<string, unknown>;
+  contentRecord?: Record<string, unknown>;
+}
+
+export interface ApiApprovedContentResponse {
+  records?: unknown[];
+  count?: number;
+  source?: string;
+  table?: string | null;
+  workflowId?: string;
 }
 
 export interface MissionControlApiBridge {
@@ -104,6 +119,7 @@ export interface MissionControlApiBridge {
   snapshot?: ApiSnapshotResponse;
   organizationContext?: ApiOrganizationContextResponse;
   rootWorkContentMap?: ApiRootWorkContentMapResponse;
+  approvedContent?: ApiApprovedContentResponse;
   mockCrawl?: ApiMockCrawlResponse;
   activeRecommendations?: unknown[];
   reviewQueue?: ApiReviewQueueResponse;
@@ -129,11 +145,18 @@ async function getJson<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+function operatorHeaders(): Record<string, string> {
+  const secret = import.meta.env.VITE_TIP_OPERATOR_SECRET;
+  if (typeof secret !== "string" || !secret.trim()) return {};
+  return { Authorization: `Bearer ${secret.trim()}` };
+}
+
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...operatorHeaders()
     },
     body: JSON.stringify(body)
   });
@@ -156,6 +179,10 @@ export async function fetchApiSnapshot(): Promise<ApiSnapshotResponse> {
 
 export async function fetchOrganizationContext(): Promise<ApiOrganizationContextResponse> {
   return getJson<ApiOrganizationContextResponse>("/v1/context/organization");
+}
+
+export async function fetchApprovedContent(): Promise<ApiApprovedContentResponse> {
+  return getJson<ApiApprovedContentResponse>("/v1/rootwork/approved-content");
 }
 
 export async function fetchRootWorkContentMap(): Promise<ApiRootWorkContentMapResponse> {
@@ -199,11 +226,12 @@ export async function decideReviewQueueItem(input: {
 
 export async function loadMissionControlApiBridge(): Promise<MissionControlApiBridge> {
   try {
-    const [health, snapshot, organizationContext, rootWorkContentMap, mockCrawl, activeRecommendations, reviewQueue, reviewDecisions, ecosystemStatus, registryResult] = await Promise.all([
+    const [health, snapshot, organizationContext, rootWorkContentMap, approvedContent, mockCrawl, activeRecommendations, reviewQueue, reviewDecisions, ecosystemStatus, registryResult] = await Promise.all([
       fetchApiHealth(),
       fetchApiSnapshot(),
       fetchOrganizationContext(),
       fetchRootWorkContentMap(),
+      fetchApprovedContent().catch(() => ({ records: [] })),
       fetchRootWorkMockCrawl(),
       fetchActiveRecommendations(),
       fetchReviewQueue(),
@@ -224,6 +252,7 @@ export async function loadMissionControlApiBridge(): Promise<MissionControlApiBr
       snapshot,
       organizationContext,
       rootWorkContentMap,
+      approvedContent,
       mockCrawl,
       activeRecommendations,
       reviewQueue,

@@ -1,0 +1,30 @@
+{
+  "identity_id": "SVC-ROOTWORK-CONTENT-INTELLIGENCE",
+  "kind": "service",
+  "name": "RootWork Content Intelligence",
+  "description": "Owns the RootWork content-map read, the mock crawl, and candidate proposal. It does not publish to restoreyour.life, call a model provider, or run on a timer. WF-ROOTWORK-CONTENT-REVIEW is its workflow. AGT-0001 stays a planned seed row.",
+  "version": "1.0.0",
+  "owner_identity_id": "ORG-TRUAXIOM",
+  "lifecycle_state": "active",
+  "capabilities": ["content-map.read", "crawl.mock", "candidates.propose"],
+  "dependencies": [
+    {
+      "identity_id": "WF-ROOTWORK-CONTENT-REVIEW",
+      "version_constraint": "1.0.0",
+      "required": true
+    }
+  ],
+  "permissions": {
+    "read": ["content-map", "mock-crawl", "review-queue"],
+    "write": ["approved-content-records"],
+    "actions": ["propose-candidates"]
+  },
+  "authoritative_sources": [
+    {
+      "source_id": "SRC-ROOTWORK-WEBSITE",
+      "uri": "https://restoreyour.life",
+      "authority": "reference"
+    }
+  ],
+  "tags": ["rootwork", "service"]
+}

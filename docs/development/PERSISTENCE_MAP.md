@@ -14,15 +14,17 @@ TIP Core is the only intelligence core. Mission Control is its operator UI. Comm
 | `GET /health` `summary` organization, product, and project lines | Same as Registry v1 | `summarySources[0..2]` is `postgres` after a successful reconcile. `summarySources[4]` (`tasks`) is `postgres` only after at least one durable task row exists. The other summary lines stay seed. |
 | `GET /health` `registry.counts` | Same as Registry v1 | This is the count block to compare with Neon. |
 | `GET /v1/snapshot` and `GET /v1/collections/{organizations,products,projects}` | Registry rows overlaid on the bootstrap snapshot | Task rows from Postgres are merged into the snapshot and into `GET /v1/collections/tasks`. Other snapshot collections stay seed. |
-| `GET /v1/collections/tasks` | Mixed | Seed tasks stay in memory. Approving a recommendation review item also upserts `tasks`. Those rows use Registry project ids (`PRJ-TIP`, `PRJ-ROOTWORK`, and the other `PRJ-*` ids), never seed `PRJ-SPRINT-002`. |
+| `GET /v1/collections/tasks` | Mixed | Each task includes `recordSource`: `seed` for `TASK-0001`..`TASK-0003` on `PRJ-SPRINT-002`, `durable` for `TASK-FROM-*`. Approving a recommendation review item upserts `tasks` on Registry project ids (`PRJ-TIP`, `PRJ-ROOTWORK`, and the other `PRJ-*` ids), never seed `PRJ-SPRINT-002`. |
 | `GET /v1/context/organization` | Mixed | Organization, products, and projects come from the overlay. Tasks include durable approval tasks once they exist. Agents, modules, knowledge, and recommendations stay seed. |
 | `modules`, `agents`, `knowledgeObjects`, `recommendations`, `ingestionSources`, `contentMaps`, `graphNodes`, `graphEdges`, `activity` | In-memory seed | Neon has empty `modules`, `agents`, `knowledge_objects`, `graph_nodes`, `graph_edges`, and `activity_events` tables. The API does not read them. `recommendations`, `ingestion_sources`, and `content_maps` tables are not in Neon. |
 | `tasks` | Postgres `tasks` when an approved recommendation has been written; otherwise in-memory seed | Startup replays the latest `tip_review_decisions` approve rows for recommendation items and upserts `TASK-FROM-{recommendation id}` on the Registry project. Existing ids are updated, not duplicated. `decided_at` is normalized to an ISO timestamp before the insert. The API adds owner, workflow, and evidence columns if they are missing. Without a database URL the same task is held in process memory and does not survive restart. |
-| `GET /v1/rootwork/content-map` | In-memory seed | `rootWorkContentMap` constant. |
+| `GET /v1/rootwork/content-map` | In-memory seed | `rootWorkContentMap` constant. Seed / demo. |
+| `approved_content_records` | Postgres when an approved `content_map_candidate` has been written | Startup replays the latest approve per review item and upserts `CONTENT-FROM-{entity id}` under workflow `WF-ROOTWORK-CONTENT-REVIEW`. A repeated approve or a later boot updates that same row. Reject and defer do not insert. |
+| `GET /v1/rootwork/approved-content` | `approved_content_records` | `persistenceMap.approvedContentRecords` is `postgres` once a durable row exists. |
 | `GET /v1/rootwork/mock-crawl` | In-memory seed | Mock crawler over the seed RootWork source. |
 | `GET /v1/recommendations/active` | In-memory seed | |
 | `GET /v1/review-queue` | Mixed | Queue items are built from the seed crawl. Item status is hydrated from `tip_review_decisions`. |
-| `GET /v1/review-queue/decisions` and `POST /v1/review-queue/decisions` | Postgres `tip_review_decisions` | Insert uses `on conflict (id) do update`. The table is created on first use if it is missing. Rows survive process restart. |
+| `GET /v1/review-queue/decisions` and `POST /v1/review-queue/decisions` | Postgres `tip_review_decisions` | Insert uses `on conflict (id) do update`. The table is created on first use if it is missing. Rows survive process restart. POST requires `Authorization: Bearer $TIP_OPERATOR_SECRET` or `X-Tip-Operator-Secret` when that secret is set, and whenever `TIP_ENV=production` or the provider is not `local-memory`. A missing or wrong secret returns 401 and writes nothing. `decided_by` is then `TIP_OPERATOR_ACTOR` (default `operator`). |
 | `GET /v1/ecosystem/status` | Live HTTP checks | Source list is code, not a database table. |
 | `launch_readiness_*` | Postgres schema only | No API route reads or writes these tables yet. |
 
@@ -47,7 +49,7 @@ Migration file: `database/010_registry_v1.sql`. The API startup reconcile writes
 
 ## Environment already in use
 
-No new secret names. The runtime still resolves the database URL in this order:
+The database URL names are unchanged. The runtime still resolves the connection string in this order:
 
 1. `NEON_DATABASE_URL`
 2. `DATABASE_URL`
@@ -55,7 +57,7 @@ No new secret names. The runtime still resolves the database URL in this order:
 
 Provider: `TIP_PERSISTENCE_PROVIDER=postgres`, `neon`, or `supabase`. SSL: `POSTGRES_SSL_MODE`.
 
-The live Render service already reports `postgres-review-decision-repository`, so its dashboard environment is ahead of `render.yaml`, which still says `local-memory`. Do not reapply the blueprint over the dashboard env or the API will drop back to memory and the registry route will report `in-memory-seed`.
+The live Render service reports `postgres-review-decision-repository`. `render.yaml` sets `TIP_PERSISTENCE_PROVIDER=postgres` so a future blueprint apply matches that mode. `NEON_DATABASE_URL` / `DATABASE_URL` and `TIP_OPERATOR_SECRET` stay in the Render dashboard (`TIP_OPERATOR_SECRET` is `sync: false`). Do not set the blueprint provider back to `local-memory`.
 
 ## Deploy notes
 

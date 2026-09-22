@@ -168,6 +168,7 @@ export interface Task extends BaseEntity {
   acceptanceCriteria?: string[];
   evidence?: string[];
   workflow?: TaskWorkflowRun;
+  recordSource?: "seed" | "durable";
 }
 
 export interface Recommendation extends BaseEntity {
