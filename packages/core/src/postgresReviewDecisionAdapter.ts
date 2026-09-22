@@ -51,6 +51,15 @@ export const postgresReviewDecisionSql = {
   `
 };
 
+export function toIsoTimestamp(value: unknown): string {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString();
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Date.parse(value);
+    if (!Number.isNaN(parsed)) return new Date(parsed).toISOString();
+  }
+  return new Date(0).toISOString();
+}
+
 function rowToReviewDecision(row: Record<string, unknown>): ReviewDecision {
   return {
     id: String(row.id),
@@ -59,7 +68,8 @@ function rowToReviewDecision(row: Record<string, unknown>): ReviewDecision {
     action: row.action as ReviewDecision["action"],
     decidedBy: String(row.decided_by),
     note: typeof row.note === "string" ? row.note : undefined,
-    decidedAt: String(row.decided_at),
+    // node-pg returns timestamptz as Date. String(date) is not valid Postgres input.
+    decidedAt: toIsoTimestamp(row.decided_at),
     resultingStatus: row.resulting_status as ReviewDecision["resultingStatus"],
     mode: row.mode as ReviewDecision["mode"]
   };

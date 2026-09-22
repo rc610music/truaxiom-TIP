@@ -1,5 +1,5 @@
 import type { Priority, Task, TaskWorkflowRun, TaskWorkflowStatus } from "@truaxiom/types";
-import type { PostgresQueryExecutor } from "./postgresReviewDecisionAdapter";
+import { toIsoTimestamp, type PostgresQueryExecutor } from "./postgresReviewDecisionAdapter";
 
 export const approvalTaskTableName = "tasks";
 export const seedProjectId = "PRJ-SPRINT-002";
@@ -123,12 +123,6 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
   return undefined;
 }
 
-function asIso(value: unknown): string {
-  if (value instanceof Date) return value.toISOString();
-  if (typeof value === "string" && value.trim()) return value;
-  return new Date(0).toISOString();
-}
-
 function asOptionalString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
 }
@@ -153,7 +147,7 @@ function asWorkflow(value: unknown): TaskWorkflowRun | undefined {
     id: String(record.id),
     name: String(record.name ?? ""),
     status: "started",
-    startedAt: asIso(record.startedAt),
+    startedAt: toIsoTimestamp(record.startedAt),
     owner: String(record.owner ?? ""),
     entryStepId: String(record.entryStepId ?? "execute-approved-recommendation"),
     evidence
@@ -168,8 +162,8 @@ export function rowToTask(row: Record<string, unknown>): Task {
     name: String(row.name),
     description: asOptionalString(row.description),
     status: row.status === "planned" || row.status === "active" || row.status === "paused" || row.status === "archived" ? row.status : "active",
-    createdAt: asIso(row.created_at),
-    updatedAt: asIso(row.updated_at),
+    createdAt: toIsoTimestamp(row.created_at),
+    updatedAt: toIsoTimestamp(row.updated_at),
     assignedTo: asOptionalString(row.assigned_to),
     productId: asOptionalString(row.product_id),
     projectId: asOptionalString(row.project_id),
@@ -193,8 +187,8 @@ function taskToParams(task: Task, organizationId: string): unknown[] {
     task.description ?? null,
     task.priority,
     task.status,
-    task.createdAt,
-    task.updatedAt,
+    toIsoTimestamp(task.createdAt),
+    toIsoTimestamp(task.updatedAt),
     task.assignedTo ?? null,
     task.recommendationId ?? null,
     task.workflowStatus,

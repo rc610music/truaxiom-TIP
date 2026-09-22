@@ -3,9 +3,11 @@ import {
   createInMemoryRepository,
   createInMemoryReviewDecisionRepository,
   createPostgresApprovalTaskRepository,
+  createPostgresReviewDecisionRepository,
   createTipApiGateway,
   createTipBootstrapSnapshot,
   postgresApprovalTaskSql,
+  postgresReviewDecisionSql,
   recommendations,
   registryProjectIdForRecommendation
 } from "../packages/core/src/index.ts";
@@ -212,6 +214,104 @@ const emptyHealth = await createTipApiGateway({
   }
 }).handleAsync({ method: "GET", path: "/health" });
 assert(emptyHealth.body.persistenceMap?.tasks === "in-memory-seed", "Empty tasks table must keep the seed source label.");
+
+const persistedApproveAt = new Date("2026-09-22T01:10:10.595Z");
+const bootDecisionRows = [
+  {
+    id: "RDEC-REV-REC-0002-approve-1790039410595",
+    queue_id: "REVQ-MISSION-CONTROL-SPRINT-002",
+    item_id: "REV-REC-0002",
+    action: "approve",
+    decided_by: "founder-local",
+    note: null,
+    decided_at: persistedApproveAt,
+    resulting_status: "approved",
+    mode: "persistent"
+  },
+  {
+    id: "RDEC-REV-TASK-0002-approve-1790039479749",
+    queue_id: "REVQ-MISSION-CONTROL-SPRINT-002",
+    item_id: "REV-TASK-0002",
+    action: "approve",
+    decided_by: "founder-local",
+    note: null,
+    decided_at: new Date("2026-09-22T01:11:19.749Z"),
+    resulting_status: "approved",
+    mode: "persistent"
+  },
+  {
+    id: "RDEC-REV-REC-0001-defer-1790035000000",
+    queue_id: "REVQ-MISSION-CONTROL-SPRINT-002",
+    item_id: "REV-REC-0001",
+    action: "defer",
+    decided_by: "founder-local",
+    note: null,
+    decided_at: new Date("2026-09-22T00:00:00.000Z"),
+    resulting_status: "deferred",
+    mode: "persistent"
+  }
+];
+const bootReviewDecisions = createPostgresReviewDecisionRepository({
+  provider: "neon",
+  async query(sql) {
+    if (sql === postgresReviewDecisionSql.listDecisions) return bootDecisionRows;
+    return [];
+  }
+});
+const bootTaskRows = [];
+const bootTaskWrites = [];
+const bootTasks = createPostgresApprovalTaskRepository({
+  async query(sql, params = []) {
+    if (sql === postgresApprovalTaskSql.listTasks) return bootTaskRows;
+    const createdAt = params[8];
+    if (typeof createdAt !== "string" || !/^\d{4}-\d{2}-\d{2}T/.test(createdAt)) {
+      throw new Error(`invalid input syntax for type timestamp with time zone: "${createdAt}"`);
+    }
+    bootTaskWrites.push(params);
+    const row = {
+      id: params[0],
+      organization_id: params[1],
+      product_id: params[2],
+      project_id: params[3],
+      name: params[4],
+      description: params[5],
+      priority: params[6],
+      status: params[7],
+      created_at: params[8],
+      updated_at: params[9],
+      assigned_to: params[10],
+      recommendation_id: params[11],
+      workflow_status: params[12],
+      acceptance_criteria: JSON.parse(String(params[13])),
+      tags: JSON.parse(String(params[14])),
+      evidence: JSON.parse(String(params[15])),
+      workflow: JSON.parse(String(params[16]))
+    };
+    const index = bootTaskRows.findIndex((item) => item.id === row.id);
+    if (index >= 0) bootTaskRows[index] = row;
+    else bootTaskRows.push(row);
+    return [row];
+  }
+});
+const bootGateway = createTipApiGateway({
+  repository: createInMemoryRepository(createTipBootstrapSnapshot()),
+  reviewDecisionRepository: bootReviewDecisions,
+  approvalTaskRepository: bootTasks,
+  persistenceLabel: "neon-review-decision-repository"
+});
+const booted = await bootGateway.replayApprovedRecommendationTasks();
+assert(booted.length === 1, "Boot replay must create one task from the persisted recommendation approval.");
+assert(booted[0]?.id === "TASK-FROM-REC-0002", "Boot replay must create TASK-FROM-REC-0002.");
+assert(booted[0]?.projectId === "PRJ-ROOTWORK" && booted[0]?.productId === "PROD-ROOTWORK", "Boot replay must bind the Registry project.");
+assert(booted[0]?.projectId !== "PRJ-SPRINT-002", "Boot replay must not bind PRJ-SPRINT-002.");
+assert(booted[0]?.createdAt === persistedApproveAt.toISOString(), "Boot replay must store the approval instant as ISO.");
+assert(bootTaskWrites.length === 1 && bootTaskWrites[0][3] === "PRJ-ROOTWORK", "Boot insert must target PRJ-ROOTWORK.");
+assert(!bootTaskWrites.some((params) => params.includes("PRJ-SPRINT-002")), "Boot insert parameters must not include PRJ-SPRINT-002.");
+const bootedAgain = await bootGateway.replayApprovedRecommendationTasks();
+assert(bootedAgain.length === 1 && bootedAgain[0]?.id === "TASK-FROM-REC-0002", "A second boot replay must return the same task.");
+assert(bootTaskRows.filter((row) => row.id === "TASK-FROM-REC-0002").length === 1, "Boot replay must not duplicate TASK-FROM-REC-0002.");
+assert(!bootTaskRows.some((row) => row.recommendation_id === "REC-0001"), "Deferred recommendations must not become tasks on boot.");
+assert(!bootTaskRows.some((row) => String(row.id).includes("TASK-0002")), "Approving a task candidate must not create another task.");
 
 console.log("TIP approval task bridge test passed.");
 console.log(JSON.stringify({

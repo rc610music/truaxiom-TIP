@@ -63,6 +63,8 @@ The stored task:
 
 Postgres writes that row to `tasks`. `GET /v1/collections/tasks` and `GET /v1/snapshot` include it. `GET /health` reports `persistenceMap.tasks` as `postgres` once at least one durable row exists. Reject and defer do not create a task. The `tip_review_decisions` insert is unchanged.
 
+API startup replays the latest `tip_review_decisions` row per review item. An `approve` on a recommendation item uses the same conversion and is upserted as `TASK-FROM-{recommendation id}` on the Registry project (`PROD-ROOTWORK` → `PRJ-ROOTWORK`). A later boot finds that id and updates the same row. Postgres `timestamptz` values are read back as ISO timestamps before that insert.
+
 ---
 
 ## Why This Matters
