@@ -147,6 +147,16 @@ export interface GraphEdge {
   createdAt: string;
 }
 
+export interface TaskWorkflowRun {
+  id: string;
+  name: string;
+  status: "started";
+  startedAt: string;
+  owner: string;
+  entryStepId: string;
+  evidence: string[];
+}
+
 export interface Task extends BaseEntity {
   assignedTo?: string;
   productId?: string;
@@ -156,6 +166,8 @@ export interface Task extends BaseEntity {
   workflowStatus: TaskWorkflowStatus;
   dueDate?: string;
   acceptanceCriteria?: string[];
+  evidence?: string[];
+  workflow?: TaskWorkflowRun;
 }
 
 export interface Recommendation extends BaseEntity {

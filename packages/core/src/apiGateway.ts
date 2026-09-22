@@ -1,4 +1,4 @@
-import type { DataCollectionName, TipDataRepository } from "@truaxiom/types";
+import type { DataCollectionName, Task, TipDataRepository } from "@truaxiom/types";
 import { buildOrganizationContextPacket, describeContextReadiness } from "./organizationalBrain";
 import { createTipBootstrapSnapshot } from "./bootstrapSnapshot";
 import { createInMemoryRepository, describeRepositorySnapshot } from "./dataAccess";
@@ -18,6 +18,12 @@ import {
 import { createInMemoryReviewDecisionRepository, type ReviewDecisionRepository } from "./reviewDecisionRepository";
 import { getEcosystemStatus } from "./ecosystemRegistry";
 import { registryV1Version } from "./registryV1";
+import { buildTaskFromApprovedRecommendation, latestReviewDecisions } from "./approvalTaskBridge";
+import {
+  createInMemoryApprovalTaskRepository,
+  taskCollectionSource,
+  type ApprovalTaskRepository
+} from "./postgresTaskAdapter";
 
 export interface ApiGatewayResponse<T = unknown> {
   status: number;
@@ -43,6 +49,7 @@ export interface RegistryMeta {
 export interface ApiGatewayOptions {
   repository?: TipDataRepository;
   reviewDecisionRepository?: ReviewDecisionRepository;
+  approvalTaskRepository?: ApprovalTaskRepository;
   modeLabel?: string;
   persistenceLabel?: string;
   registryMeta?: RegistryMeta;
@@ -91,7 +98,11 @@ function registryStore(source: RegistrySource): "postgres" | "in-memory-seed" {
   }
 }
 
-function buildPersistenceMap(registrySource: RegistrySource, persistenceLabel: string): Record<string, string> {
+function buildPersistenceMap(
+  registrySource: RegistrySource,
+  persistenceLabel: string,
+  taskSource: "postgres" | "in-memory-seed" = "in-memory-seed"
+): Record<string, string> {
   const registry = registryStore(registrySource);
   const reviewDecisions = persistenceLabel.startsWith("in-memory") ? "in-memory" : "postgres";
   const map: Record<string, string> = {
@@ -108,6 +119,7 @@ function buildPersistenceMap(registrySource: RegistrySource, persistenceLabel: s
     map[collection] = "in-memory-seed";
   }
 
+  map.tasks = taskSource;
   return map;
 }
 
@@ -122,6 +134,7 @@ function bodyAsRecord(body: unknown): Record<string, unknown> {
 export function createTipApiGateway(options: ApiGatewayOptions = {}) {
   const repository = options.repository ?? createInMemoryRepository(createTipBootstrapSnapshot());
   const reviewDecisionRepository = options.reviewDecisionRepository ?? createInMemoryReviewDecisionRepository();
+  const approvalTaskRepository = options.approvalTaskRepository ?? createInMemoryApprovalTaskRepository();
   const modeLabel = options.modeLabel ?? "local-simulated";
   const persistenceLabel = options.persistenceLabel ?? "in-memory-review-decision-repository";
   const registryMeta: RegistryMeta = options.registryMeta ?? {
@@ -129,6 +142,8 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
     source: "in-memory-seed"
   };
   let latestReviewQueue: ReviewQueue | null = null;
+  let durableTaskCount = 0;
+  let taskSource: "postgres" | "in-memory-seed" = "in-memory-seed";
 
   function registryPayload() {
     const snapshot = repository.snapshot();
@@ -152,6 +167,29 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
     };
   }
 
+  function organizationId() {
+    return repository.snapshot().organizations[0]?.id ?? "ORG-TRUAXIOM";
+  }
+
+  async function syncDurableTasks() {
+    const durable = await approvalTaskRepository.list();
+    durableTaskCount = durable.length;
+    taskSource = taskCollectionSource(approvalTaskRepository, durable.length);
+    for (const task of durable) {
+      repository.upsert("tasks", task);
+    }
+    return durable;
+  }
+
+  async function persistApprovedTask(task: Task) {
+    const saved = await approvalTaskRepository.save(task, { organizationId: organizationId() });
+    repository.upsert("tasks", saved);
+    const durable = await approvalTaskRepository.list();
+    durableTaskCount = durable.length;
+    taskSource = taskCollectionSource(approvalTaskRepository, durable.length);
+    return saved;
+  }
+
   async function healthPayload() {
     const snapshot = repository.snapshot();
     let reviewDecisionCount: number | null = null;
@@ -164,7 +202,7 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
     }
 
     const registry = registryPayload();
-    const persistenceMap = buildPersistenceMap(registryMeta.source, persistenceLabel);
+    const persistenceMap = buildPersistenceMap(registryMeta.source, persistenceLabel, taskSource);
 
     return {
       status: "ok",
@@ -191,6 +229,11 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
         table: persistenceMap.reviewDecisions === "postgres" ? "tip_review_decisions" : null,
         count: reviewDecisionCount,
         error: reviewDecisionError
+      },
+      tasks: {
+        source: persistenceMap.tasks,
+        table: approvalTaskRepository.table,
+        durableCount: durableTaskCount
       },
       availableRoutes
     };
@@ -244,11 +287,47 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
     return latestReviewQueue;
   }
 
+  function taskForApprovedRecommendation(itemId: string, entityId: string | undefined, decision: { decidedBy: string; decidedAt: string; itemId: string }) {
+    if (!entityId) {
+      throw new Error(`Approved recommendation item is missing its entity id: ${itemId}`);
+    }
+    const recommendation = repository.snapshot().recommendations.find((item) => item.id === entityId);
+    if (!recommendation) {
+      throw new Error(`Approved recommendation not found: ${itemId}`);
+    }
+    return buildTaskFromApprovedRecommendation(recommendation, {
+      decidedBy: decision.decidedBy,
+      decidedAt: decision.decidedAt,
+      itemId: decision.itemId
+    });
+  }
+
   return {
     repository,
     reviewDecisionRepository,
+    approvalTaskRepository,
+
+    async replayApprovedRecommendationTasks() {
+      await syncDurableTasks();
+      const queue = await getHydratedReviewQueue();
+      if (!queue) return [];
+
+      const decisions = latestReviewDecisions(await reviewDecisionRepository.listDecisions(queue.id));
+      const saved: Task[] = [];
+
+      for (const decision of decisions) {
+        if (decision.action !== "approve") continue;
+        const item = queue.items.find((entry) => entry.id === decision.itemId);
+        if (!item || item.type !== "recommendation") continue;
+        saved.push(await persistApprovedTask(taskForApprovedRecommendation(item.id, item.entityId, decision)));
+      }
+
+      return saved;
+    },
 
     async handleAsync(request: ApiGatewayRequest): Promise<ApiGatewayResponse> {
+      await syncDurableTasks();
+
       if (request.method === "GET" && request.path === "/health") {
         return json(200, await healthPayload());
       }
@@ -305,8 +384,14 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
           const decisions = await reviewDecisionRepository.listDecisions(queue.id);
           latestReviewQueue = result.queue;
 
+          let task: Task | undefined;
+          if (action === "approve" && result.item.type === "recommendation") {
+            task = await persistApprovedTask(taskForApprovedRecommendation(result.item.id, result.item.entityId, result.decision));
+          }
+
           return json(200, {
             ...result,
+            task,
             decisions,
             mode: modeLabel,
             persistence: persistenceLabel
@@ -348,7 +433,7 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
       if (request.path === "/health") {
         const snapshot = repository.snapshot();
         const registry = registryPayload();
-        const persistenceMap = buildPersistenceMap(registryMeta.source, persistenceLabel);
+        const persistenceMap = buildPersistenceMap(registryMeta.source, persistenceLabel, taskSource);
         return json(200, {
           status: "ok",
           service: "TIP API Gateway",
@@ -373,6 +458,11 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
             source: persistenceMap.reviewDecisions,
             table: persistenceMap.reviewDecisions === "postgres" ? "tip_review_decisions" : null,
             count: null
+          },
+          tasks: {
+            source: persistenceMap.tasks,
+            table: approvalTaskRepository.table,
+            durableCount: durableTaskCount
           },
           availableRoutes
         });

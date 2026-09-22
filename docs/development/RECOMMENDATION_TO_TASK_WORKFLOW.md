@@ -48,9 +48,20 @@ The implementation can:
 
 ## Guardrail
 
-Converted tasks enter `ready` workflow status.
+`convertRecommendationToTask` still returns `ready` workflow status and does not execute anything by itself.
 
-They are not automatically executed.
+## Approve bridge
+
+`POST /v1/review-queue/decisions` with `action: "approve"` on a recommendation item calls `convertRecommendationToTask`, then stores the task.
+
+The stored task:
+
+- uses the Registry project id for the recommendation product (`PROD-TIP` → `PRJ-TIP`, `PROD-ROOTWORK` → `PRJ-ROOTWORK`),
+- assigns `assignedTo` from the decision's `decidedBy`,
+- sets `workflowStatus` to `in_progress` and stores a `workflow` object with status `started`,
+- copies recommendation evidence plus a review-decision link.
+
+Postgres writes that row to `tasks`. `GET /v1/collections/tasks` and `GET /v1/snapshot` include it. `GET /health` reports `persistenceMap.tasks` as `postgres` once at least one durable row exists. Reject and defer do not create a task. The `tip_review_decisions` insert is unchanged.
 
 ---
 
