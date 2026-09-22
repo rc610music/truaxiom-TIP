@@ -64,6 +64,21 @@ export interface ApiEcosystemStatusResponse {
   sources?: Array<Record<string, unknown>>;
 }
 
+export interface ApiRegistryResponse {
+  version?: string;
+  source?: string;
+  configuredProvider?: string;
+  error?: string;
+  counts?: {
+    organizations?: number;
+    products?: number;
+    projects?: number;
+  };
+  organizations?: unknown[];
+  products?: unknown[];
+  projects?: unknown[];
+}
+
 export type ReviewDecisionAction = "approve" | "reject" | "defer";
 
 export interface ApiReviewDecisionResponse {
@@ -87,6 +102,8 @@ export interface MissionControlApiBridge {
   reviewQueue?: ApiReviewQueueResponse;
   reviewDecisions?: ApiReviewDecisionsResponse;
   ecosystemStatus?: ApiEcosystemStatusResponse;
+  registry?: ApiRegistryResponse;
+  registryError?: string;
 }
 
 const defaultApiBaseUrl = "http://127.0.0.1:4310";
@@ -158,6 +175,10 @@ export async function fetchEcosystemStatus(): Promise<ApiEcosystemStatusResponse
   return getJson<ApiEcosystemStatusResponse>("/v1/ecosystem/status");
 }
 
+export async function fetchRegistry(): Promise<ApiRegistryResponse> {
+  return getJson<ApiRegistryResponse>("/v1/registry");
+}
+
 export async function decideReviewQueueItem(input: {
   itemId: string;
   action: ReviewDecisionAction;
@@ -171,7 +192,7 @@ export async function decideReviewQueueItem(input: {
 
 export async function loadMissionControlApiBridge(): Promise<MissionControlApiBridge> {
   try {
-    const [health, snapshot, organizationContext, rootWorkContentMap, mockCrawl, activeRecommendations, reviewQueue, reviewDecisions, ecosystemStatus] = await Promise.all([
+    const [health, snapshot, organizationContext, rootWorkContentMap, mockCrawl, activeRecommendations, reviewQueue, reviewDecisions, ecosystemStatus, registryResult] = await Promise.all([
       fetchApiHealth(),
       fetchApiSnapshot(),
       fetchOrganizationContext(),
@@ -180,7 +201,14 @@ export async function loadMissionControlApiBridge(): Promise<MissionControlApiBr
       fetchActiveRecommendations(),
       fetchReviewQueue(),
       fetchReviewDecisions(),
-      fetchEcosystemStatus()
+      fetchEcosystemStatus(),
+      fetchRegistry().then(
+        (registry) => ({ registry, registryError: undefined as string | undefined }),
+        (error: unknown) => ({
+          registry: undefined,
+          registryError: error instanceof Error ? error.message : "Registry request failed"
+        })
+      )
     ]);
 
     return {
@@ -193,7 +221,9 @@ export async function loadMissionControlApiBridge(): Promise<MissionControlApiBr
       activeRecommendations,
       reviewQueue,
       reviewDecisions,
-      ecosystemStatus
+      ecosystemStatus,
+      registry: registryResult.registry,
+      registryError: registryResult.registryError
     };
   } catch (error) {
     return {
