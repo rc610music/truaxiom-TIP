@@ -31,6 +31,7 @@ The Founder's Blueprint is not a single static manuscript. It is a living set of
 - SYS-0003 — Intelligence Engine
 - APP-0001 — Mission Control
 - ORG-0001 — Organization Data Model
+- EVD-TIP-ARCH-RECON-001 — running-tree inventory (`docs/architecture/TIP_ARCHITECTURE_RECONCILIATION.md`). This describes what is deployed. It does not replace the architecture source of truth.
 
 ### Decision Layer
 
@@ -62,6 +63,7 @@ The Founder's Blueprint is not a single static manuscript. It is a living set of
 | ROAD-0001 | Roadmap | docs/roadmap/ROADMAP.md | Draft v1.0 |
 | SPRINT-001 | Foundation | docs/sprints/SPRINT_001_Foundation.md | Complete |
 | SPRINT-002 | Core Platform | docs/sprints/SPRINT_002_Core_Platform_Draft.md | Draft |
+| EVD-TIP-ARCH-RECON-001 | Architecture reconciliation | docs/architecture/TIP_ARCHITECTURE_RECONCILIATION.md | Inventory 2026-09-22 |
 
 ---
 
