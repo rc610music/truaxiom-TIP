@@ -24,6 +24,10 @@ This prevents the frontend from caring whether decisions are stored in:
 
 ---
 
+## Operator gate
+
+`POST /v1/review-queue/decisions` rejects a missing or wrong operator secret with 401 and writes nothing when `TIP_OPERATOR_SECRET` is set. Production, and any provider other than `local-memory`, fail closed until that secret exists. Send it as `Authorization: Bearer <secret>` or `X-Tip-Operator-Secret`. The stored `decided_by` is `TIP_OPERATOR_ACTOR` (default `operator`). Local-memory without the secret stays open for the existing local loop.
+
 ## Current Path
 
 ```text

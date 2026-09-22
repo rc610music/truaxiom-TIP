@@ -68,6 +68,15 @@ function statusTone(status: unknown) {
   return "neutral";
 }
 
+function surfaceLabel(record: LooseRecord): string {
+  if (record.recordSource === "durable") return "Durable / live";
+  if (record.recordSource === "seed") return "Seed / demo";
+  if (record.workflow || String(record.id ?? "").startsWith("TASK-FROM-") || String(record.id ?? "").startsWith("CONTENT-FROM-")) {
+    return "Durable / live";
+  }
+  return "Seed / demo";
+}
+
 export function App() {
   const [apiBridge, setApiBridge] = useState<MissionControlApiBridge>(defaultBridge);
   const [decisionMessage, setDecisionMessage] = useState("Connect the API to activate review decisions from the browser.");
@@ -95,10 +104,14 @@ export function App() {
       });
 
       const task = asRecord(result.task);
+      const contentRecord = asRecord(result.contentRecord);
       const taskNote = typeof task.id === "string"
         ? ` Task ${task.id} is ${firstText(task.workflowStatus, "open")} on ${firstText(task.projectId, "its registry project")}.`
         : "";
-      setDecisionMessage(`${firstText(result.item?.title, itemId)} marked ${firstText(result.decision?.resultingStatus, action)}.${taskNote}`);
+      const contentNote = typeof contentRecord.id === "string"
+        ? ` Content ${contentRecord.id} is stored once on ${firstText(contentRecord.projectId, "its registry project")}.`
+        : "";
+      setDecisionMessage(`${firstText(result.item?.title, itemId)} marked ${firstText(result.decision?.resultingStatus, action)}.${taskNote}${contentNote}`);
       await refreshApiBridge();
     } catch (error) {
       setDecisionMessage(error instanceof Error ? error.message : "Review decision failed.");
@@ -121,6 +134,7 @@ export function App() {
     const decisions = asArray(apiBridge.reviewDecisions?.decisions);
     const recommendations = asArray(apiBridge.activeRecommendations ?? snapshot.recommendations);
     const tasks = asArray(snapshot.tasks);
+    const approvedContent = asArray(apiBridge.approvedContent?.records);
     const projects = asArray(snapshot.projects);
     const products = asArray(snapshot.products);
     const readiness = apiBridge.organizationContext?.readiness ?? [];
@@ -137,7 +151,9 @@ export function App() {
       products,
       projects,
       tasks,
-      approvalTasks: tasks.filter((task) => task.workflow || String(task.id ?? "").startsWith("TASK-FROM-")),
+      seedTasks: tasks.filter((task) => surfaceLabel(task) === "Seed / demo"),
+      approvalTasks: tasks.filter((task) => surfaceLabel(task) === "Durable / live"),
+      approvedContent,
       recommendations,
       contentItems,
       extractedRecords,
@@ -393,6 +409,10 @@ export function App() {
                 <span>Tasks</span>
                 <strong>{firstText(apiBridge.health?.tasks?.source, "in-memory-seed")} · {Number(apiBridge.health?.tasks?.durableCount ?? 0)} durable</strong>
               </div>
+              <div className="status-row">
+                <span>Approved content</span>
+                <strong>{firstText(apiBridge.health?.approvedContentRecords?.source, "in-memory-seed")} · {Number(apiBridge.health?.approvedContentRecords?.durableCount ?? 0)} durable</strong>
+              </div>
             </div>
             <div className="mini-metrics vertical">
               {(view.healthSummary.length ? view.healthSummary : [apiBridge.error ?? "Render API is not connected yet."]).slice(0, 4).map((note) => <span key={note}>{note}</span>)}
@@ -410,10 +430,16 @@ export function App() {
               <span>{Number(view.contentSummary.averageCoverageScore ?? 0)}% coverage</span>
             </div>
             <div className="stack compact">
-              {view.contentItems.slice(0, 5).map((item) => (
+              {view.contentItems.slice(0, 4).map((item) => (
                 <div className="content-chip" key={String(item.id ?? item.title)}>
                   <strong>{firstText(item.title, "Content item")}</strong>
-                  <span>{firstText(item.lifecycleStatus, "mapped")}</span>
+                  <span>Seed / demo · {firstText(item.lifecycleStatus, "mapped")}</span>
+                </div>
+              ))}
+              {view.approvedContent.slice(0, 4).map((item) => (
+                <div className="content-chip" key={String(item.id ?? item.title)}>
+                  <strong>{firstText(item.title, "Approved content")}</strong>
+                  <span>Durable / live · {firstText(item.section, firstText(item.workflowId, "approved"))}</span>
                 </div>
               ))}
             </div>
@@ -431,6 +457,12 @@ export function App() {
                   <p>{firstText(item.expectedImpact, firstText(item.rationale, "Recommendation awaiting context."))}</p>
                 </div>
               ))}
+              {view.seedTasks.slice(0, 3).map((task) => (
+                <div className="focus-card" key={String(task.id)}>
+                  <strong>{firstText(task.name, "Seed task")}</strong>
+                  <p>Seed / demo · {String(task.id)} · {firstText(task.projectId, "PRJ-SPRINT-002")}</p>
+                </div>
+              ))}
               {view.approvalTasks.slice(0, 4).map((task) => {
                 const workflow = asRecord(task.workflow);
                 const evidence = Array.isArray(task.evidence) ? task.evidence.map(String) : [];
@@ -438,7 +470,7 @@ export function App() {
                   <div className="focus-card" key={String(task.id)}>
                     <strong>{firstText(task.name, "Approved task")}</strong>
                     <p>
-                      {String(task.id)} · {firstText(task.projectId, "registry project pending")} · {firstText(task.assignedTo, "unassigned")} · {firstText(workflow.status, firstText(task.workflowStatus, "ready"))}
+                      Durable / live · {String(task.id)} · {firstText(task.projectId, "registry project pending")} · {firstText(task.assignedTo, "unassigned")} · {firstText(workflow.status, firstText(task.workflowStatus, "ready"))}
                     </p>
                     {evidence[0] ? <p>{evidence[0]}</p> : null}
                   </div>

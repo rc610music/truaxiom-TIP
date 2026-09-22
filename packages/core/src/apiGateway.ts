@@ -1,4 +1,13 @@
 import type { DataCollectionName, Task, TipDataRepository } from "@truaxiom/types";
+import {
+  approvedContentCollectionSource,
+  buildApprovedContentRecord,
+  createInMemoryApprovedContentRepository,
+  rootWorkContentReviewWorkflowId,
+  type ApprovedContentRecord,
+  type ApprovedContentRepository
+} from "./approvedContentRecord";
+import { operatorSecretsMatch, type OperatorAuthConfig } from "./serverRuntime";
 import { buildOrganizationContextPacket, describeContextReadiness } from "./organizationalBrain";
 import { createTipBootstrapSnapshot } from "./bootstrapSnapshot";
 import { createInMemoryRepository, describeRepositorySnapshot } from "./dataAccess";
@@ -21,6 +30,7 @@ import { registryV1Version } from "./registryV1";
 import { buildTaskFromApprovedRecommendation, latestReviewDecisions } from "./approvalTaskBridge";
 import {
   createInMemoryApprovalTaskRepository,
+  presentTask,
   taskCollectionSource,
   type ApprovalTaskRepository
 } from "./postgresTaskAdapter";
@@ -34,6 +44,7 @@ export interface ApiGatewayRequest {
   method: string;
   path: string;
   query?: Record<string, string | undefined>;
+  headers?: Record<string, string | string[] | undefined>;
   body?: unknown;
 }
 
@@ -50,6 +61,8 @@ export interface ApiGatewayOptions {
   repository?: TipDataRepository;
   reviewDecisionRepository?: ReviewDecisionRepository;
   approvalTaskRepository?: ApprovalTaskRepository;
+  approvedContentRepository?: ApprovedContentRepository;
+  operatorAuth?: OperatorAuthConfig;
   modeLabel?: string;
   persistenceLabel?: string;
   registryMeta?: RegistryMeta;
@@ -62,6 +75,7 @@ const availableRoutes = [
   "GET /v1/registry",
   "GET /v1/context/organization",
   "GET /v1/rootwork/content-map",
+  "GET /v1/rootwork/approved-content",
   "GET /v1/rootwork/mock-crawl",
   "GET /v1/recommendations/active",
   "GET /v1/review-queue",
@@ -101,7 +115,8 @@ function registryStore(source: RegistrySource): "postgres" | "in-memory-seed" {
 function buildPersistenceMap(
   registrySource: RegistrySource,
   persistenceLabel: string,
-  taskSource: "postgres" | "in-memory-seed" = "in-memory-seed"
+  taskSource: "postgres" | "in-memory-seed" = "in-memory-seed",
+  approvedContentSource: "postgres" | "in-memory" | "in-memory-seed" = "in-memory-seed"
 ): Record<string, string> {
   const registry = registryStore(registrySource);
   const reviewDecisions = persistenceLabel.startsWith("in-memory") ? "in-memory" : "postgres";
@@ -120,7 +135,23 @@ function buildPersistenceMap(
   }
 
   map.tasks = taskSource;
+  map.approvedContentRecords = approvedContentSource;
   return map;
+}
+
+function headerValue(headers: ApiGatewayRequest["headers"], name: string): string | undefined {
+  const raw = headers?.[name] ?? headers?.[name.toLowerCase()];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function presentedOperatorSecret(request: ApiGatewayRequest): string | undefined {
+  const explicit = headerValue(request.headers, "x-tip-operator-secret");
+  if (explicit) return explicit;
+  const authorization = headerValue(request.headers, "authorization");
+  if (!authorization) return undefined;
+  const match = /^Bearer\s+(\S+)$/i.exec(authorization);
+  return match?.[1];
 }
 
 function isReviewDecisionAction(value: unknown): value is ReviewDecisionAction {
@@ -135,6 +166,8 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
   const repository = options.repository ?? createInMemoryRepository(createTipBootstrapSnapshot());
   const reviewDecisionRepository = options.reviewDecisionRepository ?? createInMemoryReviewDecisionRepository();
   const approvalTaskRepository = options.approvalTaskRepository ?? createInMemoryApprovalTaskRepository();
+  const approvedContentRepository = options.approvedContentRepository ?? createInMemoryApprovedContentRepository();
+  const operatorAuth: OperatorAuthConfig = options.operatorAuth ?? { required: false, actor: "operator" };
   const modeLabel = options.modeLabel ?? "local-simulated";
   const persistenceLabel = options.persistenceLabel ?? "in-memory-review-decision-repository";
   const registryMeta: RegistryMeta = options.registryMeta ?? {
@@ -144,6 +177,8 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
   let latestReviewQueue: ReviewQueue | null = null;
   let durableTaskCount = 0;
   let taskSource: "postgres" | "in-memory-seed" = "in-memory-seed";
+  let durableContentCount = 0;
+  let approvedContentSource: "postgres" | "in-memory" | "in-memory-seed" = "in-memory-seed";
 
   function registryPayload() {
     const snapshot = repository.snapshot();
@@ -190,6 +225,52 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
     return saved;
   }
 
+  async function syncDurableContent() {
+    const durable = await approvedContentRepository.list();
+    durableContentCount = durable.length;
+    approvedContentSource = approvedContentCollectionSource(approvedContentRepository, durable.length);
+    return durable;
+  }
+
+  async function persistApprovedContent(record: ApprovedContentRecord) {
+    const saved = await approvedContentRepository.save(record, { organizationId: organizationId() });
+    const durable = await approvedContentRepository.list();
+    durableContentCount = durable.length;
+    approvedContentSource = approvedContentCollectionSource(approvedContentRepository, durable.length);
+    return saved;
+  }
+
+  function candidateForReviewItem(itemId: string, entityId?: string) {
+    const packageResult = buildRootWorkCrawlPackage();
+    if (!packageResult) return undefined;
+    return packageResult.candidates.find((candidate) => candidate.id === entityId || `REV-${candidate.id}` === itemId);
+  }
+
+  function contentRecordForApproval(item: ReviewQueue["items"][number], decision: { decidedBy: string; decidedAt: string; itemId: string }) {
+    return buildApprovedContentRecord({
+      item,
+      decision,
+      candidate: candidateForReviewItem(item.id, item.entityId)
+    });
+  }
+
+  function authorizeOperator(request: ApiGatewayRequest): { ok: true; actor?: string } | { ok: false; error: string } {
+    if (!operatorAuth.required) return { ok: true };
+    if (!operatorAuth.secret) return { ok: false, error: "Operator secret is not configured." };
+    const presented = presentedOperatorSecret(request);
+    if (!presented || !operatorSecretsMatch(presented, operatorAuth.secret)) {
+      return { ok: false, error: "Unauthorized." };
+    }
+    return { ok: true, actor: operatorAuth.actor };
+  }
+
+  function presentSnapshotTasks<T extends { tasks: Task[] }>(snapshot: T): T {
+    return {
+      ...snapshot,
+      tasks: snapshot.tasks.map(presentTask)
+    };
+  }
+
   async function healthPayload() {
     const snapshot = repository.snapshot();
     let reviewDecisionCount: number | null = null;
@@ -202,7 +283,7 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
     }
 
     const registry = registryPayload();
-    const persistenceMap = buildPersistenceMap(registryMeta.source, persistenceLabel, taskSource);
+    const persistenceMap = buildPersistenceMap(registryMeta.source, persistenceLabel, taskSource, approvedContentSource);
 
     return {
       status: "ok",
@@ -234,6 +315,12 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
         source: persistenceMap.tasks,
         table: approvalTaskRepository.table,
         durableCount: durableTaskCount
+      },
+      approvedContentRecords: {
+        source: persistenceMap.approvedContentRecords,
+        table: approvedContentRepository.table,
+        durableCount: durableContentCount,
+        workflowId: rootWorkContentReviewWorkflowId
       },
       availableRoutes
     };
@@ -306,6 +393,7 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
     repository,
     reviewDecisionRepository,
     approvalTaskRepository,
+    approvedContentRepository,
 
     async replayApprovedRecommendationTasks() {
       await syncDurableTasks();
@@ -325,8 +413,27 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
       return saved;
     },
 
+    async replayApprovedContentRecords() {
+      await syncDurableContent();
+      const queue = await getHydratedReviewQueue();
+      if (!queue) return [];
+
+      const decisions = latestReviewDecisions(await reviewDecisionRepository.listDecisions(queue.id));
+      const saved: ApprovedContentRecord[] = [];
+
+      for (const decision of decisions) {
+        if (decision.action !== "approve") continue;
+        const item = queue.items.find((entry) => entry.id === decision.itemId);
+        if (!item || item.type !== "content_map_candidate") continue;
+        saved.push(await persistApprovedContent(contentRecordForApproval(item, decision)));
+      }
+
+      return saved;
+    },
+
     async handleAsync(request: ApiGatewayRequest): Promise<ApiGatewayResponse> {
       await syncDurableTasks();
+      await syncDurableContent();
 
       if (request.method === "GET" && request.path === "/health") {
         return json(200, await healthPayload());
@@ -353,6 +460,9 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
       }
 
       if (request.method === "POST" && request.path === "/v1/review-queue/decisions") {
+        const gate = authorizeOperator(request);
+        if (!gate.ok) return json(401, { error: gate.error });
+
         const queue = await getHydratedReviewQueue();
         if (!queue) return json(404, { error: "Review queue could not be generated" });
 
@@ -372,7 +482,7 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
           const result = applyReviewDecision(queue, {
             itemId,
             action,
-            decidedBy: typeof body.decidedBy === "string" ? body.decidedBy : "founder-local",
+            decidedBy: gate.actor ?? (typeof body.decidedBy === "string" ? body.decidedBy : "founder-local"),
             note: typeof body.note === "string" ? body.note : undefined
           });
 
@@ -385,13 +495,18 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
           latestReviewQueue = result.queue;
 
           let task: Task | undefined;
+          let contentRecord: ApprovedContentRecord | undefined;
           if (action === "approve" && result.item.type === "recommendation") {
-            task = await persistApprovedTask(taskForApprovedRecommendation(result.item.id, result.item.entityId, result.decision));
+            task = presentTask(await persistApprovedTask(taskForApprovedRecommendation(result.item.id, result.item.entityId, result.decision)));
+          }
+          if (action === "approve" && result.item.type === "content_map_candidate") {
+            contentRecord = await persistApprovedContent(contentRecordForApproval(result.item, result.decision));
           }
 
           return json(200, {
             ...result,
             task,
+            contentRecord,
             decisions,
             mode: modeLabel,
             persistence: persistenceLabel
@@ -402,6 +517,19 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
             persistence: persistenceLabel
           });
         }
+      }
+
+      if (request.method === "GET" && request.path === "/v1/rootwork/approved-content") {
+        const records = await approvedContentRepository.list();
+        return json(200, {
+          records,
+          count: records.length,
+          source: approvedContentSource,
+          table: approvedContentRepository.table,
+          workflowId: rootWorkContentReviewWorkflowId,
+          mode: modeLabel,
+          persistence: persistenceLabel
+        });
       }
 
       if (request.method === "GET" && request.path === "/v1/review-queue/decisions") {
@@ -433,7 +561,7 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
       if (request.path === "/health") {
         const snapshot = repository.snapshot();
         const registry = registryPayload();
-        const persistenceMap = buildPersistenceMap(registryMeta.source, persistenceLabel, taskSource);
+        const persistenceMap = buildPersistenceMap(registryMeta.source, persistenceLabel, taskSource, approvedContentSource);
         return json(200, {
           status: "ok",
           service: "TIP API Gateway",
@@ -464,6 +592,12 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
             table: approvalTaskRepository.table,
             durableCount: durableTaskCount
           },
+          approvedContentRecords: {
+            source: persistenceMap.approvedContentRecords,
+            table: approvedContentRepository.table,
+            durableCount: durableContentCount,
+            workflowId: rootWorkContentReviewWorkflowId
+          },
           availableRoutes
         });
       }
@@ -473,13 +607,15 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
       }
 
       if (request.path === "/v1/snapshot") {
-        return json(200, repository.snapshot());
+        return json(200, presentSnapshotTasks(repository.snapshot()));
       }
 
       if (request.path.startsWith("/v1/collections/")) {
         const collection = request.path.replace("/v1/collections/", "") as DataCollectionName;
         const result = repository.list(collection);
-        return result.ok ? json(200, result.data) : json(404, { error: result.error });
+        if (!result.ok) return json(404, { error: result.error });
+        if (collection === "tasks") return json(200, (result.data as Task[]).map(presentTask));
+        return json(200, result.data);
       }
 
       if (request.path === "/v1/context/organization") {
@@ -494,7 +630,7 @@ export function createTipApiGateway(options: ApiGatewayOptions = {}) {
           agents: snapshot.agents,
           modules: snapshot.modules,
           knowledgeObjects: snapshot.knowledgeObjects,
-          tasks: snapshot.tasks,
+          tasks: snapshot.tasks.map(presentTask),
           recommendations: snapshot.recommendations,
           activity: snapshot.activity,
           graph: {

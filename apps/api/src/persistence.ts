@@ -1,9 +1,12 @@
 import { Pool } from "pg";
 import {
   approvalTaskSchemaStatements,
+  approvedContentSchemaStatements,
+  createInMemoryApprovedContentRepository,
   createInMemoryApprovalTaskRepository,
   createInMemoryReviewDecisionRepository,
   createPostgresApprovalTaskRepository,
+  createPostgresApprovedContentRepository,
   createPostgresRegistryRepository,
   createPostgresReviewDecisionRepository,
   describePostgresReviewDecisionAdapter,
@@ -11,6 +14,7 @@ import {
   registrySchemaSql,
   registryV1,
   type ApprovalTaskRepository,
+  type ApprovedContentRepository,
   type PostgresRegistryRepository,
   type RegistryRecords,
   type RegistrySource,
@@ -28,6 +32,7 @@ export interface RegistryLoadResult {
 export interface ApiPersistenceRuntime {
   reviewDecisionRepository: ReviewDecisionRepository;
   approvalTaskRepository: ApprovalTaskRepository;
+  approvedContentRepository: ApprovedContentRepository;
   persistenceLabel: string;
   readinessNotes: string[];
   loadRegistry(): Promise<RegistryLoadResult>;
@@ -59,6 +64,7 @@ export function createApiPersistenceRuntime(config: TipServerConfig): ApiPersist
     return {
       reviewDecisionRepository: createInMemoryReviewDecisionRepository(),
       approvalTaskRepository: createInMemoryApprovalTaskRepository(),
+      approvedContentRepository: createInMemoryApprovedContentRepository(),
       persistenceLabel: "in-memory-review-decision-repository",
       readinessNotes: describeReviewDecisionRepository("in-memory"),
       async loadRegistry() {
@@ -146,9 +152,28 @@ export function createApiPersistenceRuntime(config: TipServerConfig): ApiPersist
     }
   });
 
+  let contentSchemaReady: Promise<void> | undefined;
+
+  function ensureApprovedContentSchema() {
+    contentSchemaReady ??= (async () => {
+      for (const statement of approvedContentSchemaStatements) {
+        await pool.query(statement);
+      }
+    })();
+    return contentSchemaReady;
+  }
+
+  const approvedContentRepository = createPostgresApprovedContentRepository({
+    async query(sql, params = []) {
+      await ensureApprovedContentSchema();
+      return query(sql, params);
+    }
+  });
+
   return {
     reviewDecisionRepository,
     approvalTaskRepository,
+    approvedContentRepository,
     persistenceLabel: `${provider}-review-decision-repository`,
     readinessNotes: [
       ...describePostgresReviewDecisionAdapter({
@@ -159,7 +184,8 @@ export function createApiPersistenceRuntime(config: TipServerConfig): ApiPersist
       `Postgres SSL mode: ${config.postgresSslMode}`,
       "Review decisions will persist through the configured database connection.",
       "Registry v1 organizations, products, and projects reconcile to Postgres on startup.",
-      "Approved recommendations are written to the tasks table with Registry project ids."
+      "Approved recommendations are written to the tasks table with Registry project ids.",
+      "Approved content-map candidates upsert one row in approved_content_records."
     ],
     async loadRegistry() {
       try {

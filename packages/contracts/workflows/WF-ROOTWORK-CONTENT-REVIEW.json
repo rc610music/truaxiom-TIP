@@ -1,0 +1,58 @@
+{
+  "workflow_id": "WF-ROOTWORK-CONTENT-REVIEW",
+  "name": "RootWork content review",
+  "description": "Service workflow for RootWork Content Intelligence. It reads the mock crawl, proposes content-map candidates, waits for a human approval, and persists one durable content record. It does not run an agent, call a model, or crawl restoreyour.life.",
+  "version": "1.0.0",
+  "owner": "SVC-ROOTWORK-CONTENT-INTELLIGENCE",
+  "lifecycle_state": "active",
+  "entry_step_id": "crawl.read",
+  "steps": [
+    {
+      "step_id": "crawl.read",
+      "name": "Read crawl",
+      "type": "tool_action",
+      "actor_identity_id": "SVC-CRAWLER-MOCK",
+      "input_contract": "ingestion-source",
+      "output_contract": "extracted-content-records",
+      "next_step_ids": ["candidates.propose"],
+      "requires_approval": false
+    },
+    {
+      "step_id": "candidates.propose",
+      "name": "Propose content map candidates",
+      "type": "action",
+      "actor_identity_id": "SVC-CONTENT-CANDIDATES",
+      "input_contract": "extracted-content-records",
+      "output_contract": "content-map-candidates",
+      "next_step_ids": ["human.approve"],
+      "requires_approval": false
+    },
+    {
+      "step_id": "human.approve",
+      "name": "Human approval",
+      "type": "approval",
+      "actor_identity_id": "HUMAN-REVIEW",
+      "input_contract": "review-queue-item",
+      "output_contract": "review-decision",
+      "next_step_ids": ["record.persist"],
+      "requires_approval": true
+    },
+    {
+      "step_id": "record.persist",
+      "name": "Persist approved candidate",
+      "type": "action",
+      "actor_identity_id": "SVC-CONTENT-RECORD",
+      "input_contract": "approved-content-map-candidate",
+      "output_contract": "approved-content-record",
+      "next_step_ids": [],
+      "requires_approval": false
+    }
+  ],
+  "failure_policy": {
+    "on_uncertainty": "stop",
+    "on_permission_denied": "stop",
+    "on_repeated_failure": "stop"
+  },
+  "audit_policy": ["tip_review_decisions", "approved_content_records"],
+  "tags": ["rootwork", "service", "content-review"]
+}

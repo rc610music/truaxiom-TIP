@@ -15,8 +15,14 @@ services:
         value: api
       - key: TIP_API_HOST
         value: 0.0.0.0
+      # Matches the live service (postgres-review-decision-repository).
+      # Database URL stays in the Render dashboard. Do not set this back to local-memory.
       - key: TIP_PERSISTENCE_PROVIDER
-        value: local-memory
+        value: postgres
+      - key: TIP_OPERATOR_ACTOR
+        value: operator
+      - key: TIP_OPERATOR_SECRET
+        sync: false
       - key: TIP_CORS_ORIGINS
         value: https://rc610music.github.io,https://rc610music.github.io/truaxiom-TIP,http://localhost:5173,http://127.0.0.1:5173
       - key: TIP_ENABLE_LIVE_CRAWLER

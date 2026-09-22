@@ -5,6 +5,7 @@ const requiredEndpoints = [
   "/v1/snapshot",
   "/v1/context/organization",
   "/v1/rootwork/content-map",
+  "/v1/rootwork/approved-content",
   "/v1/rootwork/mock-crawl",
   "/v1/recommendations/active",
   "/v1/registry",
@@ -32,17 +33,40 @@ async function assertDecisionEndpoint(reviewQueue) {
     throw new Error("Review queue smoke test could not find an item to decide.");
   }
 
+  const decisionBody = {
+    itemId: firstReviewItem.id,
+    action: "defer",
+    decidedBy: "smoke-test",
+    note: "Smoke test simulated decision."
+  };
+  const operatorSecret = process.env.TIP_OPERATOR_SECRET?.trim();
+
+  if (operatorSecret) {
+    const denied = await fetch(`${apiBaseUrl}/v1/review-queue/decisions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(decisionBody)
+    });
+    if (denied.status !== 401) {
+      throw new Error(`Unauthorized review POST should return 401, received ${denied.status}.`);
+    }
+    const deniedBody = await denied.json();
+    if (!/unauthorized/i.test(String(deniedBody?.error ?? ""))) {
+      throw new Error("Unauthorized review POST did not report an unauthorized error.");
+    }
+  }
+
+  const headers = {
+    "Content-Type": "application/json"
+  };
+  if (operatorSecret) headers.Authorization = `Bearer ${operatorSecret}`;
+
   const response = await fetch(`${apiBaseUrl}/v1/review-queue/decisions`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      itemId: firstReviewItem.id,
-      action: "defer",
-      decidedBy: "smoke-test",
-      note: "Smoke test simulated decision."
-    })
+    headers,
+    body: JSON.stringify(decisionBody)
   });
 
   if (!response.ok) {
@@ -52,6 +76,10 @@ async function assertDecisionEndpoint(reviewQueue) {
   const body = await response.json();
   if (body?.decision?.resultingStatus !== "deferred") {
     throw new Error("Review decision smoke test did not return deferred status.");
+  }
+
+  if (operatorSecret && body?.decision?.decidedBy !== (process.env.TIP_OPERATOR_ACTOR || "operator")) {
+    throw new Error("Authorized review POST did not store the operator actor.");
   }
 
   const decisionsResponse = await fetch(`${apiBaseUrl}/v1/review-queue/decisions`);

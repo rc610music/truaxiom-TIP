@@ -250,6 +250,20 @@ export function createPostgresApprovalTaskRepository(options: { query?: Postgres
   };
 }
 
+export function taskRecordSource(task: Pick<Task, "id" | "projectId">): "seed" | "durable" {
+  if (task.id.startsWith("TASK-FROM-")) return "durable";
+  if (!task.projectId || task.projectId === seedProjectId) return "seed";
+  if (task.id === "TASK-0001" || task.id === "TASK-0002" || task.id === "TASK-0003") return "seed";
+  return "durable";
+}
+
+export function presentTask(task: Task): Task {
+  return {
+    ...task,
+    recordSource: taskRecordSource(task)
+  };
+}
+
 export function taskCollectionSource(repository: Pick<ApprovalTaskRepository, "source">, durableCount: number): "postgres" | "in-memory-seed" {
   switch (repository.source) {
     case "postgres":

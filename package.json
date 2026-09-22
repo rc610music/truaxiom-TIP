@@ -27,6 +27,10 @@
     "test:api": "node scripts/test-api-loop.mjs",
     "test:postgres-adapter": "node --import tsx scripts/test-postgres-adapter.mjs",
     "test:approval-tasks": "node --import tsx scripts/test-approval-task-bridge.mjs",
+    "test:operator-gate": "node --import tsx scripts/test-operator-review-gate.mjs",
+    "test:approved-content": "node --import tsx scripts/test-approved-content-records.mjs",
+    "test:rootwork-workflow": "node --import tsx scripts/test-rootwork-workflow.mjs",
+    "test:safety-stack": "npm run test:operator-gate && npm run test:approved-content && npm run test:rootwork-workflow && npm run test:approval-tasks",
     "test:registry": "node --import tsx scripts/test-registry-adapter.mjs",
     "ci": "npm run check:foundation",
     "ci:legacy-api": "npm run check:structure && npm run typecheck && npm run build:api"
