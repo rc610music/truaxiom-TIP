@@ -1,17 +1,31 @@
 import { Pool } from "pg";
 import {
   createInMemoryReviewDecisionRepository,
+  createPostgresRegistryRepository,
   createPostgresReviewDecisionRepository,
   describePostgresReviewDecisionAdapter,
   describeReviewDecisionRepository,
+  registrySchemaSql,
+  registryV1,
+  type PostgresRegistryRepository,
+  type RegistryRecords,
+  type RegistrySource,
   type ReviewDecisionRepository,
   type TipServerConfig
 } from "@truaxiom/core";
+
+export interface RegistryLoadResult {
+  source: RegistrySource;
+  configuredProvider: RegistrySource;
+  records?: RegistryRecords;
+  error?: string;
+}
 
 export interface ApiPersistenceRuntime {
   reviewDecisionRepository: ReviewDecisionRepository;
   persistenceLabel: string;
   readinessNotes: string[];
+  loadRegistry(): Promise<RegistryLoadResult>;
   dispose(): Promise<void>;
 }
 
@@ -41,6 +55,12 @@ export function createApiPersistenceRuntime(config: TipServerConfig): ApiPersist
       reviewDecisionRepository: createInMemoryReviewDecisionRepository(),
       persistenceLabel: "in-memory-review-decision-repository",
       readinessNotes: describeReviewDecisionRepository("in-memory"),
+      async loadRegistry() {
+        return {
+          source: "in-memory-seed",
+          configuredProvider: "in-memory-seed"
+        };
+      },
       async dispose() {
         return undefined;
       }
@@ -73,13 +93,31 @@ export function createApiPersistenceRuntime(config: TipServerConfig): ApiPersist
     return schemaReady;
   }
 
+  let registrySchemaReady: Promise<void> | undefined;
+
+  function ensureRegistrySchema() {
+    registrySchemaReady ??= pool.query(registrySchemaSql).then(() => undefined);
+    return registrySchemaReady;
+  }
+
+  async function query(sql: string, params: unknown[] = []) {
+    const result = await pool.query(sql, params as any[]);
+    return result.rows;
+  }
+
   const reviewDecisionRepository = createPostgresReviewDecisionRepository({
     provider,
     connectionString: config.databaseUrl,
     async query(sql, params = []) {
       await ensureSchema();
-      const result = await pool.query(sql, params as any[]);
-      return result.rows;
+      return query(sql, params);
+    }
+  });
+
+  const registryRepository: PostgresRegistryRepository = createPostgresRegistryRepository({
+    async query(sql, params = []) {
+      await ensureRegistrySchema();
+      return query(sql, params);
     }
   });
 
@@ -87,10 +125,31 @@ export function createApiPersistenceRuntime(config: TipServerConfig): ApiPersist
     reviewDecisionRepository,
     persistenceLabel: `${provider}-review-decision-repository`,
     readinessNotes: [
-      ...describePostgresReviewDecisionAdapter({ provider, connectionString: config.databaseUrl }),
+      ...describePostgresReviewDecisionAdapter({
+        provider,
+        connectionString: config.databaseUrl,
+        query: async () => []
+      }),
       `Postgres SSL mode: ${config.postgresSslMode}`,
-      "Review decisions will persist through the configured database connection."
+      "Review decisions will persist through the configured database connection.",
+      "Registry v1 organizations, products, and projects reconcile to Postgres on startup."
     ],
+    async loadRegistry() {
+      try {
+        const records = await registryRepository.reconcile(registryV1);
+        return {
+          source: provider,
+          configuredProvider: provider,
+          records
+        };
+      } catch (error) {
+        return {
+          source: "in-memory-seed",
+          configuredProvider: provider,
+          error: error instanceof Error ? error.message : "Registry reconcile failed"
+        };
+      }
+    },
     async dispose() {
       await pool.end();
     }

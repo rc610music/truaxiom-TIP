@@ -20,4 +20,6 @@ export * from "./serverRuntime";
 export * from "./reviewQueue";
 export * from "./reviewDecisionRepository";
 export * from "./postgresReviewDecisionAdapter";
+export * from "./postgresRegistryAdapter";
+export * from "./registryV1";
 export * from "./ecosystemRegistry";

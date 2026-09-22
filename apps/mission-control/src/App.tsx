@@ -44,7 +44,7 @@ const pipelineStages = [
   {
     label: "Remember",
     title: "Durable intelligence",
-    note: "Local memory today. Neon/Postgres or Supabase next when persistence is connected."
+    note: "Registry v1 and review decisions stay in Postgres when the API persistence map says so."
   }
 ];
 
@@ -122,6 +122,9 @@ export function App() {
     const readiness = apiBridge.organizationContext?.readiness ?? [];
     const ecosystemSources = asArray(apiBridge.ecosystemStatus?.sources);
     const ecosystemSummary = asRecord(apiBridge.ecosystemStatus?.summary);
+    const registryProducts = asArray(apiBridge.registry?.products);
+    const registryProjects = asArray(apiBridge.registry?.projects);
+    const registrySource = firstText(apiBridge.registry?.source, apiBridge.registryError ? "unavailable" : "not-loaded");
 
     return {
       organizationName: firstText(organization.name, "TruaXiom"),
@@ -143,7 +146,11 @@ export function App() {
       persistence: apiBridge.reviewQueue?.persistence ?? apiBridge.health?.persistence ?? "not-connected",
       reviewMode: apiBridge.reviewQueue?.mode ?? "static-fallback",
       ecosystemSources,
-      ecosystemSummary
+      ecosystemSummary,
+      registryProducts,
+      registryProjects,
+      registrySource,
+      registryError: apiBridge.registryError ?? apiBridge.registry?.error
     };
   }, [apiBridge]);
 
@@ -151,6 +158,7 @@ export function App() {
   const hasApi = apiBridge.connected;
   const apiBaseUrl = getApiBaseUrl();
   const reviewNeedCount = Number(view.reviewSummary.needsReview ?? view.reviewItems.length);
+  const durableRegistry = view.registrySource === "postgres" || view.registrySource === "neon" || view.registrySource === "supabase";
 
   return (
     <main className="tip-dashboard">
@@ -210,8 +218,8 @@ export function App() {
 
         <section className="metric-strip" aria-label="Mission Control metrics">
           <article>
-            <span>{view.products.length}</span>
-            <p>Products mapped</p>
+            <span>{view.registryProducts.length}</span>
+            <p>Registry products</p>
           </article>
           <article>
             <span>{reviewNeedCount}</span>
@@ -232,6 +240,34 @@ export function App() {
         </section>
 
         <section className="visual-grid">
+          <article className="panel wide registry-panel" data-registry-source={view.registrySource}>
+            <div className="panel-heading split-heading">
+              <div>
+                <p className="eyebrow">TIP Registry v1</p>
+                <strong>Products and projects from {durableRegistry ? "Postgres" : view.registrySource}</strong>
+              </div>
+              <span className={`status-pill ${durableRegistry ? "good" : "warn"}`}>{view.registrySource}</span>
+            </div>
+            {view.registryError ? <div className="decision-note">{view.registryError}</div> : null}
+            <div className="source-grid">
+              {view.registryProducts.length === 0 ? (
+                <div className="empty-card">Registry v1 is not loaded from the TIP API.</div>
+              ) : view.registryProducts.map((product) => {
+                const productId = String(product.id ?? product.name);
+                const project = view.registryProjects.find((item) => item.productId === product.id);
+                return (
+                  <div className="source-card" key={productId}>
+                    <div>
+                      <span className={`status-pill ${product.status === "active" ? "good" : "neutral"}`}>{firstText(product.status, "registered")}</span>
+                      <strong>{firstText(product.name, productId)}</strong>
+                      <small>{productId} · {project ? String(project.id) : "no project row"}</small>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </article>
+
           <article className="panel wide system-panel">
             <div className="panel-heading split-heading">
               <div>
@@ -339,6 +375,10 @@ export function App() {
               <div className="status-row">
                 <span>Persistence</span>
                 <strong>{view.persistence}</strong>
+              </div>
+              <div className="status-row">
+                <span>Registry</span>
+                <strong>{view.registrySource}</strong>
               </div>
               <div className="status-row">
                 <span>Review</span>
