@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "truaxiom-app-manifest-v1",
+  "projectId": "PRJ-TIP",
+  "productId": "PROD-TIP",
+  "name": "TIP Core",
+  "description": "Shared intelligence core; Mission Control is its agent and workflow operations surface.",
+  "source": {
+    "provider": "github",
+    "repository": "rc610music/truaxiom-TIP",
+    "ref": "codex/pie-onboarding-20261008",
+    "path": "",
+    "manifestPath": ".truaxiom/app-manifest.json"
+  },
+  "deployments": [],
+  "domains": [],
+  "capabilities": [
+    {
+      "id": "registry-v1",
+      "name": "Shared product and project registry",
+      "evidencePath": null
+    },
+    {
+      "id": "mission-control",
+      "name": "TIP runtime operations",
+      "evidencePath": null
+    }
+  ],
+  "dependencies": [],
+  "tip": {
+    "registry": true,
+    "integrationPoints": [
+      "registry-v1"
+    ]
+  }
+}
