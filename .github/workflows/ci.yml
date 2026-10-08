@@ -30,3 +30,6 @@ jobs:
 
       - name: Typecheck workspaces
         run: npm run typecheck
+
+      - name: Validate TIP Runtime 001
+        run: npm run test:runtime-001
