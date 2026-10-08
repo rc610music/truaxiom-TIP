@@ -26,3 +26,4 @@ export * from "./postgresReviewDecisionAdapter";
 export * from "./postgresRegistryAdapter";
 export * from "./registryV1";
 export * from "./ecosystemRegistry";
+export * from "./taxisRuntime";
