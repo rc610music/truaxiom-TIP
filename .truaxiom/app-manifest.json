@@ -21,7 +21,7 @@
     },
     {
       "id": "mission-control",
-      "name": "TIP runtime operations",
+      "name": "TIP runtime operations — autonomous manifest check",
       "evidencePath": null
     }
   ],
