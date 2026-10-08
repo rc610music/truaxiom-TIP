@@ -33,7 +33,9 @@
     "test:safety-stack": "npm run test:operator-gate && npm run test:approved-content && npm run test:rootwork-workflow && npm run test:approval-tasks",
     "test:registry": "node --import tsx scripts/test-registry-adapter.mjs",
     "ci": "npm run check:foundation",
-    "ci:legacy-api": "npm run check:structure && npm run typecheck && npm run build:api"
+    "ci:legacy-api": "npm run check:structure && npm run typecheck && npm run build:api",
+    "test:taxis-runtime": "node --import tsx scripts/test-taxis-runtime.mjs",
+    "test:runtime-001": "npm run test:taxis-runtime && npm run check:contracts"
   },
   "engines": {
     "node": ">=20.0.0"
