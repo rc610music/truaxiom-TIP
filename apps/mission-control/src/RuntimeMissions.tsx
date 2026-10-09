@@ -13,6 +13,17 @@ export function RuntimeMissions() {
   const [source, setSource] = useState("");
   const [busy, setBusy] = useState(false);
   const [report, setReport] = useState<unknown>(null);
+  const [deliveries, setDeliveries] = useState<
+    Array<{
+      delivery_id: string;
+      mission_id: string;
+      mission_revision: number;
+      status: string;
+      attempts: number;
+      last_error_code: string | null;
+    }>
+  >([]);
+  const [deliveryStatus, setDeliveryStatus] = useState("");
   async function inspectReport(missionId: string, sha: string) {
     setBusy(true);
     try {
@@ -52,6 +63,19 @@ export function RuntimeMissions() {
       };
       setMissions(data.missions);
       setSource(data.source);
+      const deliveryResponse = await fetch(
+        `${getApiBaseUrl()}/v1/runtime/deliveries`,
+        { headers: { Authorization: `Bearer ${secret.current}` } },
+      );
+      if (deliveryResponse.ok) {
+        setDeliveries((await deliveryResponse.json()).deliveries);
+        setDeliveryStatus("");
+      } else {
+        setDeliveries([]);
+        setDeliveryStatus(
+          "Delivery status unavailable. The API may need its additive delivery migration.",
+        );
+      }
       setStatus(
         data.missions.length
           ? "Mission states loaded."
@@ -60,6 +84,8 @@ export function RuntimeMissions() {
     } catch (error) {
       setMissions([]);
       setSource("");
+      setDeliveries([]);
+      setDeliveryStatus("");
       setStatus(
         error instanceof Error ? error.message : "Runtime unavailable.",
       );
@@ -70,7 +96,7 @@ export function RuntimeMissions() {
   return (
     <article className="panel">
       <div className="panel-heading">
-        <p className="eyebrow">Taxis · Runtime 003</p>
+        <p className="eyebrow">Taxis · Mission operations</p>
         <strong>Mission lifecycle</strong>
       </div>
       <form
@@ -100,6 +126,8 @@ export function RuntimeMissions() {
             setMissions([]);
             setSource("");
             setReport(null);
+            setDeliveries([]);
+            setDeliveryStatus("");
             setStatus("Disconnected.");
           }}
         >
@@ -155,6 +183,19 @@ export function RuntimeMissions() {
           </div>
         ))}
       </div>
+      {(deliveries.length > 0 || deliveryStatus) && (
+        <section aria-label="Command Center delivery">
+          <strong>Command Center delivery</strong>
+          {deliveryStatus && <p>{deliveryStatus}</p>}
+          {deliveries.map((d) => (
+            <p key={d.delivery_id}>
+              {d.mission_id} · revision {d.mission_revision} · {d.status} ·{" "}
+              {d.attempts} attempts
+              {d.last_error_code ? ` · ${d.last_error_code}` : ""}
+            </p>
+          ))}
+        </section>
+      )}
       {report !== null && (
         <details open>
           <summary>Stored evidence report</summary>

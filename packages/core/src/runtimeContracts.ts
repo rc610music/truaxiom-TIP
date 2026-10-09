@@ -13,6 +13,8 @@ import mission from "../../contracts/schemas/mission.schema.json";
 import command from "../../contracts/schemas/runtime-command.schema.json";
 import storedArtifact from "../../contracts/schemas/stored-runtime-artifact.schema.json";
 
+import deliveryMapping from "../../contracts/schemas/runtime-delivery-mapping.schema.json";
+
 const ajv = new Ajv2020({ allErrors: true, strict: true });
 addFormats(ajv);
 for (const schema of [
@@ -28,6 +30,7 @@ for (const schema of [
   mission,
   command,
   storedArtifact,
+  deliveryMapping,
 ])
   ajv.addSchema(schema);
 export class RuntimeError extends Error {

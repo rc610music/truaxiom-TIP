@@ -8,6 +8,7 @@ import {
   type CapabilityManifest,
   type OperatorAuthConfig,
   type ArtifactRepository,
+  type RuntimeDeliveryRepository,
 } from "@truaxiom/core";
 
 /** Repository-owned manifests only. An HTTP caller cannot register or elevate an agent. */
@@ -41,6 +42,7 @@ export function createMissionRuntimeApi(
   runtime: MissionRuntime,
   auth: OperatorAuthConfig,
   artifacts?: ArtifactRepository,
+  deliveries?: RuntimeDeliveryRepository,
 ) {
   return async (
     request: RuntimeApiRequest,
@@ -56,6 +58,52 @@ export function createMissionRuntimeApi(
       };
     const principal = { actor: auth.actor, role: "operator" as const };
     try {
+      if (
+        request.path === "/v1/runtime/deliveries" &&
+        request.method === "GET"
+      ) {
+        return {
+          status: 200,
+          body: {
+            source: runtime.repository.source,
+            deliveries: ((await deliveries?.list()) ?? []).map(
+              ({ lease_token, ...row }) => row,
+            ),
+          },
+        };
+      }
+      const retryPath = request.path.match(
+        /^\/v1\/runtime\/deliveries\/([a-f0-9]{64})\/retry$/,
+      );
+      if (retryPath && request.method === "POST") {
+        if (
+          !request.body ||
+          typeof request.body !== "object" ||
+          Array.isArray(request.body) ||
+          Object.keys(request.body).length
+        )
+          throw new RuntimeError(400, "Empty retry payload required");
+        const row = (await deliveries?.list())?.find(
+          (r) => r.delivery_id === retryPath[1],
+        );
+        if (!row) throw new RuntimeError(404, "Delivery not found");
+        if (!["PAUSED", "PENDING"].includes(row.status))
+          throw new RuntimeError(409, "Only paused deliveries can be requeued");
+        await deliveries!.retry(
+          row.delivery_id,
+          new Date().toISOString(),
+          principal.actor,
+        );
+        return {
+          status: 200,
+          body: {
+            delivery_id: row.delivery_id,
+            status: (await deliveries!.list()).find(
+              (r) => r.delivery_id === row.delivery_id,
+            )!.status,
+          },
+        };
+      }
       if (request.path === "/v1/runtime/missions") {
         if (request.method === "GET")
           return {

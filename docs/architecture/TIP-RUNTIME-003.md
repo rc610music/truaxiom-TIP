@@ -1,5 +1,9 @@
 # TIP Runtime 003: leased read-only execution and ledger projection
 
+The subsequent [durable delivery continuation](TIP-RUNTIME-DELIVERY-v1.md) adds an
+atomic queue, fenced retry scheduling and operator diagnostics. The description
+below records the original Runtime 003 checkpoint.
+
 Continues Runtime 002 on `codex/tip-runtime-001`, PR #8. No replacement registry,
 task system, database platform or Command Center implementation was introduced.
 

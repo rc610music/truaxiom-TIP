@@ -1,5 +1,9 @@
 import { Pool } from "pg";
 import {
+  createMemoryRuntimeDeliveries,
+  createPostgresRuntimeDeliveries,
+  type RuntimeDeliveryRepository,
+  type RuntimeDeliveryMapping,
   createMemoryRuntimeArtifacts,
   createPostgresRuntimeArtifacts,
   type ArtifactRepository,
@@ -36,6 +40,7 @@ export interface RegistryLoadResult {
 }
 
 export interface ApiPersistenceRuntime {
+  runtimeDeliveries: RuntimeDeliveryRepository;
   missionRepository: MissionRepository;
   runtimeArtifacts: ArtifactRepository;
   reviewDecisionRepository: ReviewDecisionRepository;
@@ -76,9 +81,25 @@ function createPool(config: TipServerConfig): Pool {
 
 export function createApiPersistenceRuntime(
   config: TipServerConfig,
+  deliveryMappings: readonly RuntimeDeliveryMapping[] = [],
 ): ApiPersistenceRuntime {
+  const memoryDeliveries = createMemoryRuntimeDeliveries();
+  const unavailable = async (): Promise<never> => {
+    throw new Error("Runtime database is not configured");
+  };
   if (config.persistenceProvider === "local-memory" || !config.databaseUrl) {
     return {
+      runtimeDeliveries:
+        config.persistenceProvider === "local-memory"
+          ? memoryDeliveries
+          : {
+              list: unavailable,
+              claim: unavailable,
+              renew: unavailable,
+              finish: unavailable,
+              fail: unavailable,
+              retry: unavailable,
+            },
       runtimeArtifacts:
         config.persistenceProvider === "local-memory"
           ? createMemoryRuntimeArtifacts()
@@ -92,7 +113,7 @@ export function createApiPersistenceRuntime(
             },
       missionRepository:
         config.persistenceProvider === "local-memory"
-          ? createInMemoryMissionRepository()
+          ? createInMemoryMissionRepository(memoryDeliveries, deliveryMappings)
           : {
               source: "postgres",
               async get() {
@@ -224,7 +245,8 @@ export function createApiPersistenceRuntime(
   });
 
   return {
-    missionRepository: createPostgresMissionRepository(query),
+    runtimeDeliveries: createPostgresRuntimeDeliveries(query),
+    missionRepository: createPostgresMissionRepository(query, deliveryMappings),
     runtimeArtifacts: createPostgresRuntimeArtifacts(query),
     reviewDecisionRepository,
     approvalTaskRepository,

@@ -39,3 +39,6 @@ jobs:
 
       - name: Validate TIP Runtime 003 worker and bridge
         run: npm run test:runtime-003
+
+      - name: Validate transactional runtime delivery and restart recovery
+        run: npm run test:runtime-delivery

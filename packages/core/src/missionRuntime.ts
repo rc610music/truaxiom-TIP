@@ -1,3 +1,4 @@
+import { runtimeHandoffPacket } from "./runtimePacket";
 import {
   routeDelegation,
   type RuntimeAgent,
@@ -319,25 +320,7 @@ export class MissionRuntime {
     return r;
   }
   packet(r: MissionRecord): HandoffPacket {
-    return {
-      schema_version: "1.0",
-      source: "TIP",
-      mission_id: r.mission.mission_id,
-      delegation_id: r.delegation.delegation_id,
-      project_id: r.mission.project_id,
-      revision: r.revision,
-      assigned_agent_id: r.delegation.assigned_agent_id,
-      state: r.delegation.status,
-      blockers: r.blockers,
-      evidence: r.evidence,
-      handoffs: r.handoffs,
-      failures: r.failures,
-      review_required:
-        r.delegation.status === "REVIEW" ||
-        r.delegation.status === "NEEDS_APPROVAL",
-      completion_result: r.completionResult,
-      updated_at: r.events.at(-1)!.created_at,
-    };
+    return runtimeHandoffPacket(r);
   }
   async command(
     id: string,

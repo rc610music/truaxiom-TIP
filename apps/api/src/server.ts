@@ -13,6 +13,9 @@ import {
   overlayRegistryOnSnapshot,
   readTipServerConfig,
   registryV1Version,
+  readRuntimeDeliveryMappings,
+  createCommandCenterCandidateTransport,
+  deliverNextRuntimePacket,
 } from "@truaxiom/core";
 import { createApiPersistenceRuntime } from "./persistence";
 import {
@@ -21,7 +24,10 @@ import {
 } from "./missionRuntimeApi";
 
 const config = readTipServerConfig();
-const persistence = createApiPersistenceRuntime(config);
+const deliveryMappings = readRuntimeDeliveryMappings(
+  process.env.TIP_COMMAND_CENTER_PROJECT_MAPPINGS,
+);
+const persistence = createApiPersistenceRuntime(config, deliveryMappings);
 const runtime = new MissionRuntime(
   persistence.missionRepository,
   await loadRuntimeCatalog(process.env.TIP_RUNTIME_CATALOG),
@@ -32,7 +38,47 @@ const runtimeApi = createMissionRuntimeApi(
   runtime,
   config.operatorAuth,
   persistence.runtimeArtifacts,
+  persistence.runtimeDeliveries,
 );
+const deliveryEnabled = process.env.TIP_RUNTIME_DELIVERY_ENABLED;
+if (deliveryEnabled && !["true", "false"].includes(deliveryEnabled))
+  throw new Error("Invalid runtime delivery enable flag");
+if (
+  deliveryEnabled === "true" &&
+  (config.environment !== "development" ||
+    config.persistenceProvider === "local-memory" ||
+    !config.databaseUrl ||
+    !deliveryMappings.length)
+)
+  throw new Error(
+    "Delivery scheduling requires an explicitly configured durable development runtime",
+  );
+const deliveryTransport =
+  deliveryEnabled === "true"
+    ? createCommandCenterCandidateTransport(
+        process.env.TIP_CC_EXISTING_TOKEN ?? "",
+      )
+    : null;
+let deliveryTick: Promise<unknown> | null = null;
+let deliveryStopping = false;
+const deliveryTimer = deliveryTransport
+  ? setInterval(() => {
+      if (deliveryTick || deliveryStopping) return;
+      deliveryTick = deliverNextRuntimePacket(
+        persistence.runtimeDeliveries,
+        deliveryTransport,
+      )
+        .catch(() => {
+          console.error(
+            "Runtime delivery storage unavailable; attempt left fenced for recovery",
+          );
+        })
+        .finally(() => {
+          deliveryTick = null;
+        });
+    }, 10000)
+  : null;
+deliveryTimer?.unref();
 const workerApi = createRuntimeWorkerApi(
   runtime,
   persistence.runtimeArtifacts,
@@ -220,6 +266,9 @@ const server = createServer(async (request, response) => {
 });
 
 async function shutdown() {
+  deliveryStopping = true;
+  if (deliveryTimer) clearInterval(deliveryTimer);
+  if (deliveryTick) await deliveryTick;
   await persistence.dispose();
   server.close(() => process.exit(0));
 }
