@@ -1,3 +1,4 @@
+import { RuntimeMissions } from "./RuntimeMissions";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   decideReviewQueueItem,
@@ -378,6 +379,8 @@ export function App() {
               })}
             </div>
           </article>
+
+          <RuntimeMissions />
 
           <article className="panel runtime-panel">
             <div className="panel-heading">

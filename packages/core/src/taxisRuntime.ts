@@ -2,10 +2,21 @@ export type RuntimeRiskTier = "low" | "medium" | "high" | "critical";
 
 export interface RuntimeAgent {
   agentId: string;
-  lifecycleState: "draft" | "validating" | "active" | "paused" | "deprecated" | "retired";
+  lifecycleState:
+    | "draft"
+    | "validating"
+    | "active"
+    | "paused"
+    | "deprecated"
+    | "retired";
   capabilities: string[];
   permissions: string[];
-  autonomyLevel: "observe" | "recommend" | "draft" | "execute_with_approval" | "execute";
+  autonomyLevel:
+    | "observe"
+    | "recommend"
+    | "draft"
+    | "execute_with_approval"
+    | "execute";
   priority?: number;
 }
 
@@ -37,7 +48,7 @@ function hasAll(values: string[], required: string[]): boolean {
 
 export function resolveAgent(
   agents: RuntimeAgent[],
-  requirement: CapabilityRequirement
+  requirement: CapabilityRequirement,
 ): RuntimeAgent | null {
   const requiredPermissions = requirement.requiredPermissions ?? [];
 
@@ -45,14 +56,18 @@ export function resolveAgent(
     .filter((agent) => agent.lifecycleState === "active")
     .filter((agent) => agent.capabilities.includes(requirement.capabilityId))
     .filter((agent) => hasAll(agent.permissions, requiredPermissions))
-    .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0) || a.agentId.localeCompare(b.agentId));
+    .sort(
+      (a, b) =>
+        (b.priority ?? 0) - (a.priority ?? 0) ||
+        (a.agentId < b.agentId ? -1 : a.agentId > b.agentId ? 1 : 0),
+    );
 
   return eligible[0] ?? null;
 }
 
 export function routeDelegation(
   agents: RuntimeAgent[],
-  request: DelegationRequest
+  request: DelegationRequest,
 ): DelegationDecision {
   const agent = resolveAgent(agents, request.requirement);
   if (!agent) {
@@ -60,12 +75,19 @@ export function routeDelegation(
       missionId: request.missionId,
       assignedAgentId: null,
       status: "unroutable",
-      reason: "No active agent satisfies the requested capability and permission boundary."
+      reason:
+        "No active agent satisfies the requested capability and permission boundary.",
     };
   }
 
   const risk = request.requirement.riskTier ?? "low";
   const approvalRequired =
+    /production|promot|billing|credential|secret|destruct|delete|drop|purge|security|policy|permission|admin|privileg|dns/i.test(
+      [
+        request.requirement.capabilityId,
+        ...(request.requirement.requiredPermissions ?? []),
+      ].join(" "),
+    ) ||
     risk === "critical" ||
     risk === "high" ||
     agent.autonomyLevel === "execute_with_approval" ||
@@ -79,6 +101,6 @@ export function routeDelegation(
     status: approvalRequired ? "needs_approval" : "assigned",
     reason: approvalRequired
       ? "Capability matched, but governance requires operator approval before execution."
-      : "Capability and permissions matched an active execution-authorized agent."
+      : "Capability and permissions matched an active execution-authorized agent.",
   };
 }

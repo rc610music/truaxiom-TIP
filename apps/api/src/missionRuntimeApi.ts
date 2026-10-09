@@ -1,0 +1,107 @@
+import { readFile, readdir } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import {
+  MissionRuntime,
+  RuntimeError,
+  operatorSecretsMatch,
+  type AgentManifest,
+  type CapabilityManifest,
+  type OperatorAuthConfig,
+} from "@truaxiom/core";
+
+/** Repository-owned manifests only. An HTTP caller cannot register or elevate an agent. */
+export async function loadRuntimeCatalog() {
+  async function load(directory: string): Promise<unknown[]> {
+    const url = new URL(
+      `../../../packages/contracts/${directory}/`,
+      import.meta.url,
+    );
+    const files = (await readdir(fileURLToPath(url)))
+      .filter((f) => f.endsWith(".json"))
+      .sort();
+    return Promise.all(
+      files.map((f) => readFile(new URL(f, url), "utf8").then(JSON.parse)),
+    );
+  }
+  return {
+    agents: (await load("agents")) as AgentManifest[],
+    capabilities: (await load("capabilities")) as CapabilityManifest[],
+  };
+}
+export interface RuntimeApiRequest {
+  method: string;
+  path: string;
+  headers?: Record<string, string | undefined>;
+  body?: unknown;
+}
+export function createMissionRuntimeApi(
+  runtime: MissionRuntime,
+  auth: OperatorAuthConfig,
+) {
+  return async (
+    request: RuntimeApiRequest,
+  ): Promise<{ status: number; body: unknown }> => {
+    // All runtime records (including evidence links) require authentication, even local memory.
+    const secret =
+      request.headers?.["x-tip-operator-secret"] ??
+      request.headers?.authorization?.match(/^Bearer\s+(\S+)$/i)?.[1];
+    if (!auth.secret || !secret || !operatorSecretsMatch(secret, auth.secret))
+      return {
+        status: 401,
+        body: { error: "Runtime operator authentication required" },
+      };
+    const principal = { actor: auth.actor, role: "operator" as const };
+    try {
+      if (request.path === "/v1/runtime/missions") {
+        if (request.method === "GET")
+          return {
+            status: 200,
+            body: {
+              schema_version: "1.0",
+              source: runtime.repository.source,
+              missions: (await runtime.repository.list()).map((r) =>
+                runtime.packet(r),
+              ),
+            },
+          };
+        if (request.method === "POST")
+          return {
+            status: 200,
+            body: await runtime.create(request.body, principal),
+          };
+      }
+      const match = request.path.match(
+        /^\/v1\/runtime\/missions\/([^/]+)(?:\/(commands|bridge))?$/,
+      );
+      if (match) {
+        let id: string;
+        try {
+          id = decodeURIComponent(match[1]);
+        } catch {
+          throw new RuntimeError(400, "Invalid mission path encoding");
+        }
+        if (request.method === "GET" && !match[2])
+          return { status: 200, body: await runtime.get(id) };
+        if (request.method === "GET" && match[2] === "bridge")
+          return { status: 200, body: runtime.packet(await runtime.get(id)) };
+        if (request.method === "POST" && match[2] === "commands")
+          return {
+            status: 200,
+            body: await runtime.command(id, request.body, principal),
+          };
+      }
+      return { status: 404, body: { error: "Runtime route not found" } };
+    } catch (error) {
+      if (error instanceof RuntimeError)
+        return { status: error.status, body: { error: error.message } };
+      // Never expose query errors, connection strings or evidence payloads.
+      return {
+        status: 503,
+        body: {
+          error:
+            "Runtime storage/catalog unavailable; verify migration and configuration",
+        },
+      };
+    }
+  };
+}

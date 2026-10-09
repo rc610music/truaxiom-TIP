@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.truaxiom.llc/tip/state-event/v1",
+  "title": "TIP state-event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "mission_id",
+    "delegation_id",
+    "event_id",
+    "sequence",
+    "from_state",
+    "to_state",
+    "actor",
+    "reason",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "mission_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "delegation_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "from_state": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "UNROUTABLE",
+            "NEEDS_APPROVAL",
+            "ASSIGNED",
+            "RUNNING",
+            "BLOCKED",
+            "REVIEW",
+            "COMPLETED",
+            "FAILED",
+            "CANCELLED"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "to_state": {
+      "type": "string",
+      "enum": [
+        "UNROUTABLE",
+        "NEEDS_APPROVAL",
+        "ASSIGNED",
+        "RUNNING",
+        "BLOCKED",
+        "REVIEW",
+        "COMPLETED",
+        "FAILED",
+        "CANCELLED"
+      ]
+    },
+    "actor": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
