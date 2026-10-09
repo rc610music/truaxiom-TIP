@@ -36,6 +36,7 @@
     "permissions": { "$ref": "#/$defs/permissions" },
     "approval_policy": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["default_tier", "approval_required_for"],
       "properties": {
         "default_tier": { "type": "string", "enum": ["observe", "recommend", "draft", "execute_with_approval", "execute"] },

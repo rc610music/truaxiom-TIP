@@ -30,3 +30,15 @@ jobs:
 
       - name: Typecheck workspaces
         run: npm run typecheck
+
+      - name: Validate TIP Runtime 001
+        run: npm run test:runtime-001
+
+      - name: Validate TIP Runtime 002 lifecycle and restart persistence
+        run: npm run test:runtime-002
+
+      - name: Validate TIP Runtime 003 worker and bridge
+        run: npm run test:runtime-003
+
+      - name: Validate transactional runtime delivery and restart recovery
+        run: npm run test:runtime-delivery

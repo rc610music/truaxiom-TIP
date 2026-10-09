@@ -1,5 +1,15 @@
 import { Pool } from "pg";
 import {
+  createMemoryRuntimeDeliveries,
+  createPostgresRuntimeDeliveries,
+  type RuntimeDeliveryRepository,
+  type RuntimeDeliveryMapping,
+  createMemoryRuntimeArtifacts,
+  createPostgresRuntimeArtifacts,
+  type ArtifactRepository,
+  createInMemoryMissionRepository,
+  createPostgresMissionRepository,
+  type MissionRepository,
   approvalTaskSchemaStatements,
   approvedContentSchemaStatements,
   createInMemoryApprovedContentRepository,
@@ -19,7 +29,7 @@ import {
   type RegistryRecords,
   type RegistrySource,
   type ReviewDecisionRepository,
-  type TipServerConfig
+  type TipServerConfig,
 } from "@truaxiom/core";
 
 export interface RegistryLoadResult {
@@ -30,6 +40,9 @@ export interface RegistryLoadResult {
 }
 
 export interface ApiPersistenceRuntime {
+  runtimeDeliveries: RuntimeDeliveryRepository;
+  missionRepository: MissionRepository;
+  runtimeArtifacts: ArtifactRepository;
   reviewDecisionRepository: ReviewDecisionRepository;
   approvalTaskRepository: ApprovalTaskRepository;
   approvedContentRepository: ApprovedContentRepository;
@@ -42,12 +55,17 @@ export interface ApiPersistenceRuntime {
 function shouldUseSsl(config: TipServerConfig): boolean {
   if (config.postgresSslMode === "disable") return false;
   if (config.postgresSslMode === "require") return true;
-  return config.persistenceProvider === "neon" || config.persistenceProvider === "supabase";
+  return (
+    config.persistenceProvider === "neon" ||
+    config.persistenceProvider === "supabase"
+  );
 }
 
 function createPool(config: TipServerConfig): Pool {
   if (!config.databaseUrl) {
-    throw new Error("DATABASE_URL or NEON_DATABASE_URL is required for Postgres persistence.");
+    throw new Error(
+      "DATABASE_URL or NEON_DATABASE_URL is required for Postgres persistence.",
+    );
   }
 
   return new Pool({
@@ -55,13 +73,59 @@ function createPool(config: TipServerConfig): Pool {
     ssl: shouldUseSsl(config) ? { rejectUnauthorized: false } : false,
     max: Number(process.env.POSTGRES_POOL_MAX ?? 4),
     idleTimeoutMillis: Number(process.env.POSTGRES_IDLE_TIMEOUT_MS ?? 30_000),
-    connectionTimeoutMillis: Number(process.env.POSTGRES_CONNECTION_TIMEOUT_MS ?? 10_000)
+    connectionTimeoutMillis: Number(
+      process.env.POSTGRES_CONNECTION_TIMEOUT_MS ?? 10_000,
+    ),
   });
 }
 
-export function createApiPersistenceRuntime(config: TipServerConfig): ApiPersistenceRuntime {
+export function createApiPersistenceRuntime(
+  config: TipServerConfig,
+  deliveryMappings: readonly RuntimeDeliveryMapping[] = [],
+): ApiPersistenceRuntime {
+  const memoryDeliveries = createMemoryRuntimeDeliveries();
+  const unavailable = async (): Promise<never> => {
+    throw new Error("Runtime database is not configured");
+  };
   if (config.persistenceProvider === "local-memory" || !config.databaseUrl) {
     return {
+      runtimeDeliveries:
+        config.persistenceProvider === "local-memory"
+          ? memoryDeliveries
+          : {
+              list: unavailable,
+              claim: unavailable,
+              renew: unavailable,
+              finish: unavailable,
+              fail: unavailable,
+              retry: unavailable,
+            },
+      runtimeArtifacts:
+        config.persistenceProvider === "local-memory"
+          ? createMemoryRuntimeArtifacts()
+          : {
+              async put() {
+                throw new Error("Runtime database is not configured");
+              },
+              async get() {
+                throw new Error("Runtime database is not configured");
+              },
+            },
+      missionRepository:
+        config.persistenceProvider === "local-memory"
+          ? createInMemoryMissionRepository(memoryDeliveries, deliveryMappings)
+          : {
+              source: "postgres",
+              async get() {
+                throw new Error("Runtime database is not configured");
+              },
+              async list() {
+                throw new Error("Runtime database is not configured");
+              },
+              async save() {
+                throw new Error("Runtime database is not configured");
+              },
+            },
       reviewDecisionRepository: createInMemoryReviewDecisionRepository(),
       approvalTaskRepository: createInMemoryApprovalTaskRepository(),
       approvedContentRepository: createInMemoryApprovedContentRepository(),
@@ -70,21 +134,28 @@ export function createApiPersistenceRuntime(config: TipServerConfig): ApiPersist
       async loadRegistry() {
         return {
           source: "in-memory-seed",
-          configuredProvider: "in-memory-seed"
+          configuredProvider: "in-memory-seed",
         };
       },
       async dispose() {
         return undefined;
-      }
+      },
     };
   }
 
   const pool = createPool(config);
-  const provider = config.persistenceProvider === "neon" ? "neon" : config.persistenceProvider === "supabase" ? "supabase" : "postgres";
+  const provider =
+    config.persistenceProvider === "neon"
+      ? "neon"
+      : config.persistenceProvider === "supabase"
+        ? "supabase"
+        : "postgres";
   let schemaReady: Promise<void> | undefined;
 
   function ensureSchema() {
-    schemaReady ??= pool.query(`
+    schemaReady ??= pool
+      .query(
+        `
       create table if not exists tip_review_decisions (
         id text primary key,
         queue_id text not null,
@@ -100,7 +171,9 @@ export function createApiPersistenceRuntime(config: TipServerConfig): ApiPersist
       );
       create index if not exists idx_tip_review_decisions_queue
         on tip_review_decisions(queue_id, decided_at desc);
-    `).then(() => undefined);
+    `,
+      )
+      .then(() => undefined);
 
     return schemaReady;
   }
@@ -123,7 +196,7 @@ export function createApiPersistenceRuntime(config: TipServerConfig): ApiPersist
     async query(sql, params = []) {
       await ensureSchema();
       return query(sql, params);
-    }
+    },
   });
 
   let taskSchemaReady: Promise<void> | undefined;
@@ -137,19 +210,20 @@ export function createApiPersistenceRuntime(config: TipServerConfig): ApiPersist
     return taskSchemaReady;
   }
 
-  const registryRepository: PostgresRegistryRepository = createPostgresRegistryRepository({
-    async query(sql, params = []) {
-      await ensureRegistrySchema();
-      return query(sql, params);
-    }
-  });
+  const registryRepository: PostgresRegistryRepository =
+    createPostgresRegistryRepository({
+      async query(sql, params = []) {
+        await ensureRegistrySchema();
+        return query(sql, params);
+      },
+    });
 
   const approvalTaskRepository = createPostgresApprovalTaskRepository({
     async query(sql, params = []) {
       await ensureRegistrySchema();
       await ensureTaskSchema();
       return query(sql, params);
-    }
+    },
   });
 
   let contentSchemaReady: Promise<void> | undefined;
@@ -167,10 +241,13 @@ export function createApiPersistenceRuntime(config: TipServerConfig): ApiPersist
     async query(sql, params = []) {
       await ensureApprovedContentSchema();
       return query(sql, params);
-    }
+    },
   });
 
   return {
+    runtimeDeliveries: createPostgresRuntimeDeliveries(query),
+    missionRepository: createPostgresMissionRepository(query, deliveryMappings),
+    runtimeArtifacts: createPostgresRuntimeArtifacts(query),
     reviewDecisionRepository,
     approvalTaskRepository,
     approvedContentRepository,
@@ -179,13 +256,13 @@ export function createApiPersistenceRuntime(config: TipServerConfig): ApiPersist
       ...describePostgresReviewDecisionAdapter({
         provider,
         connectionString: config.databaseUrl,
-        query: async () => []
+        query: async () => [],
       }),
       `Postgres SSL mode: ${config.postgresSslMode}`,
       "Review decisions will persist through the configured database connection.",
       "Registry v1 organizations, products, and projects reconcile to Postgres on startup.",
       "Approved recommendations are written to the tasks table with Registry project ids.",
-      "Approved content-map candidates upsert one row in approved_content_records."
+      "Approved content-map candidates upsert one row in approved_content_records.",
     ],
     async loadRegistry() {
       try {
@@ -193,18 +270,21 @@ export function createApiPersistenceRuntime(config: TipServerConfig): ApiPersist
         return {
           source: provider,
           configuredProvider: provider,
-          records
+          records,
         };
       } catch (error) {
         return {
           source: "in-memory-seed",
           configuredProvider: provider,
-          error: error instanceof Error ? error.message : "Registry reconcile failed"
+          error:
+            error instanceof Error
+              ? error.message
+              : "Registry reconcile failed",
         };
       }
     },
     async dispose() {
       await pool.end();
-    }
+    },
   };
 }

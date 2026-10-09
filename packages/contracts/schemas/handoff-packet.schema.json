@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.truaxiom.llc/tip/handoff-packet/v1",
+  "title": "TIP handoff-packet v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source",
+    "mission_id",
+    "delegation_id",
+    "project_id",
+    "revision",
+    "assigned_agent_id",
+    "state",
+    "blockers",
+    "evidence",
+    "handoffs",
+    "review_required",
+    "completion_result",
+    "updated_at",
+    "failures"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "source": {
+      "const": "TIP"
+    },
+    "mission_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "delegation_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "assigned_agent_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "UNROUTABLE",
+        "NEEDS_APPROVAL",
+        "ASSIGNED",
+        "RUNNING",
+        "BLOCKED",
+        "REVIEW",
+        "COMPLETED",
+        "FAILED",
+        "CANCELLED"
+      ]
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      },
+      "uniqueItems": true,
+      "maxItems": 100
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.truaxiom.llc/tip/artifact/v1"
+      },
+      "uniqueItems": true,
+      "maxItems": 100
+    },
+    "handoffs": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.truaxiom.llc/tip/handoff-request/v1"
+      },
+      "uniqueItems": true,
+      "maxItems": 100
+    },
+    "review_required": {
+      "type": "boolean"
+    },
+    "completion_result": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.truaxiom.llc/tip/failure-event/v1"
+      },
+      "maxItems": 100
+    }
+  }
+}

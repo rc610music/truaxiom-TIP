@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.truaxiom.llc/tip/runtime-delivery-mapping/v1",
+  "title": "TIP Runtime delivery mapping v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "tip_project_id",
+    "command_center_project_id",
+    "environment"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "tip_project_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "command_center_project_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,80}$"
+    },
+    "environment": { "enum": ["development", "preview"] }
+  }
+}

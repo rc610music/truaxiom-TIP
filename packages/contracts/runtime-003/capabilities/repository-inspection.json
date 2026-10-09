@@ -1,0 +1,21 @@
+{
+  "capability_id": "repository.inspect",
+  "name": "Pinned repository inspection",
+  "version": "1.0.0",
+  "description": "Inspect metadata of rc610music/truaxiom-TIP at a pinned commit. No repository code execution or mutations.",
+  "inputs": [
+    "repository",
+    "ref"
+  ],
+  "outputs": [
+    "repository-report"
+  ],
+  "required_permissions": [
+    "read:github:rc610music:truaxiom-TIP"
+  ],
+  "risk_tier": "low",
+  "tags": [
+    "read-only",
+    "metadata"
+  ]
+}

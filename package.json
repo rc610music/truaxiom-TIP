@@ -2,7 +2,7 @@
   "name": "truaxiom-tip",
   "version": "0.0.1",
   "private": true,
-  "description": "TruaXiom Intelligence Platform — business intelligence operating system and Mission Control workspace.",
+  "description": "TruaXiom Intelligence Platform \u2014 business intelligence operating system and Mission Control workspace.",
   "type": "module",
   "workspaces": [
     "apps/*",
@@ -33,7 +33,12 @@
     "test:safety-stack": "npm run test:operator-gate && npm run test:approved-content && npm run test:rootwork-workflow && npm run test:approval-tasks",
     "test:registry": "node --import tsx scripts/test-registry-adapter.mjs",
     "ci": "npm run check:foundation",
-    "ci:legacy-api": "npm run check:structure && npm run typecheck && npm run build:api"
+    "ci:legacy-api": "npm run check:structure && npm run typecheck && npm run build:api",
+    "test:taxis-runtime": "node --import tsx scripts/test-taxis-runtime.mjs",
+    "test:runtime-001": "npm run test:taxis-runtime && npm run check:contracts",
+    "test:runtime-002": "node --import tsx --test scripts/test-mission-runtime.mjs",
+    "test:runtime-003": "node --import tsx --test scripts/test-runtime-worker.mjs scripts/test-command-center-runtime.mjs",
+    "test:runtime-delivery": "node --import tsx --test scripts/test-runtime-delivery.mjs"
   },
   "engines": {
     "node": ">=20.0.0"
