@@ -36,7 +36,8 @@
     "ci:legacy-api": "npm run check:structure && npm run typecheck && npm run build:api",
     "test:taxis-runtime": "node --import tsx scripts/test-taxis-runtime.mjs",
     "test:runtime-001": "npm run test:taxis-runtime && npm run check:contracts",
-    "test:runtime-002": "node --import tsx --test scripts/test-mission-runtime.mjs"
+    "test:runtime-002": "node --import tsx --test scripts/test-mission-runtime.mjs",
+    "test:runtime-003": "node --import tsx --test scripts/test-runtime-worker.mjs scripts/test-command-center-runtime.mjs"
   },
   "engines": {
     "node": ">=20.0.0"

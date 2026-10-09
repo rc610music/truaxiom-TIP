@@ -1,5 +1,8 @@
 import { Pool } from "pg";
 import {
+  createMemoryRuntimeArtifacts,
+  createPostgresRuntimeArtifacts,
+  type ArtifactRepository,
   createInMemoryMissionRepository,
   createPostgresMissionRepository,
   type MissionRepository,
@@ -34,6 +37,7 @@ export interface RegistryLoadResult {
 
 export interface ApiPersistenceRuntime {
   missionRepository: MissionRepository;
+  runtimeArtifacts: ArtifactRepository;
   reviewDecisionRepository: ReviewDecisionRepository;
   approvalTaskRepository: ApprovalTaskRepository;
   approvedContentRepository: ApprovedContentRepository;
@@ -75,6 +79,17 @@ export function createApiPersistenceRuntime(
 ): ApiPersistenceRuntime {
   if (config.persistenceProvider === "local-memory" || !config.databaseUrl) {
     return {
+      runtimeArtifacts:
+        config.persistenceProvider === "local-memory"
+          ? createMemoryRuntimeArtifacts()
+          : {
+              async put() {
+                throw new Error("Runtime database is not configured");
+              },
+              async get() {
+                throw new Error("Runtime database is not configured");
+              },
+            },
       missionRepository:
         config.persistenceProvider === "local-memory"
           ? createInMemoryMissionRepository()
@@ -210,6 +225,7 @@ export function createApiPersistenceRuntime(
 
   return {
     missionRepository: createPostgresMissionRepository(query),
+    runtimeArtifacts: createPostgresRuntimeArtifacts(query),
     reviewDecisionRepository,
     approvalTaskRepository,
     approvedContentRepository,

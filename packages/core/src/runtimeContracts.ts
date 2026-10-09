@@ -11,6 +11,7 @@ import handoff from "../../contracts/schemas/handoff-request.schema.json";
 import packet from "../../contracts/schemas/handoff-packet.schema.json";
 import mission from "../../contracts/schemas/mission.schema.json";
 import command from "../../contracts/schemas/runtime-command.schema.json";
+import storedArtifact from "../../contracts/schemas/stored-runtime-artifact.schema.json";
 
 const ajv = new Ajv2020({ allErrors: true, strict: true });
 addFormats(ajv);
@@ -26,6 +27,7 @@ for (const schema of [
   packet,
   mission,
   command,
+  storedArtifact,
 ])
   ajv.addSchema(schema);
 export class RuntimeError extends Error {

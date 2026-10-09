@@ -57,6 +57,13 @@
     "created_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "verification_level": {
+      "type": "string",
+      "enum": [
+        "CLAIMED",
+        "HASH_VERIFIED"
+      ]
     }
   }
 }

@@ -42,6 +42,10 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 4096
+        },
+        "lease_token": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
         }
       }
     },
@@ -70,6 +74,10 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 4096
+        },
+        "lease_token": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
         }
       }
     },
@@ -98,6 +106,10 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 4096
+        },
+        "lease_token": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
         }
       }
     },
@@ -130,6 +142,10 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 4096
+        },
+        "lease_token": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
         }
       }
     },
@@ -179,6 +195,10 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 4096
+        },
+        "lease_token": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
         }
       }
     },
@@ -221,6 +241,10 @@
         },
         "retryable": {
           "type": "boolean"
+        },
+        "lease_token": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
         }
       }
     },
@@ -259,6 +283,10 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 4096
+        },
+        "lease_token": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
         }
       }
     },
@@ -286,6 +314,80 @@
         "handoff_id": {
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "lease_token": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_id",
+        "expected_revision",
+        "type",
+        "ttl_seconds",
+        "attempt_id"
+      ],
+      "properties": {
+        "command_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "type": {
+          "const": "claim"
+        },
+        "lease_token": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "ttl_seconds": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 300
+        },
+        "attempt_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_id",
+        "expected_revision",
+        "type",
+        "ttl_seconds",
+        "lease_token"
+      ],
+      "properties": {
+        "command_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "type": {
+          "const": "heartbeat"
+        },
+        "lease_token": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "ttl_seconds": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 300
         }
       }
     }

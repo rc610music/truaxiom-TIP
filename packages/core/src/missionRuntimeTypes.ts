@@ -40,6 +40,7 @@ export interface MissionInput {
   risk_tier: RuntimeRiskTier;
   constraints: string[];
   evidence_required: string[];
+  inputs?: { repository: string; ref: string };
 }
 export interface DelegationEnvelope {
   schema_version: "2.0";
@@ -56,6 +57,13 @@ export interface DelegationEnvelope {
   risk_tier: RuntimeRiskTier;
   policy_fingerprint: string;
 }
+export interface ExecutionLease {
+  token: string;
+  attempt_id: string;
+  agent_id: string;
+  epoch: number;
+  expires_at: string;
+}
 export interface Artifact {
   schema_version: "1.0";
   mission_id: string;
@@ -65,6 +73,7 @@ export interface Artifact {
   uri: string;
   sha256: string;
   summary: string;
+  verification_level?: "CLAIMED" | "HASH_VERIFIED";
   attached_by: string;
   created_at: string;
 }
@@ -121,7 +130,10 @@ export interface HandoffRequest {
 export type RuntimeCommand = {
   command_id: string;
   expected_revision: number;
+  lease_token?: string;
 } & (
+  | { type: "claim"; attempt_id: string; ttl_seconds: number }
+  | { type: "heartbeat"; ttl_seconds: number }
   | {
       type: "transition";
       state: "RUNNING" | "BLOCKED" | "REVIEW" | "CANCELLED";
@@ -164,6 +176,7 @@ export interface MissionRecord {
   permissionRequests: PermissionRequest[];
   blockers: string[];
   completionResult: string | null;
+  lease?: ExecutionLease;
   receipts: Record<string, { input: string; revision: number }>;
 }
 

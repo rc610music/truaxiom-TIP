@@ -20,6 +20,7 @@ export function createInMemoryMissionRepository(): MissionRepository {
         .map((r) => structuredClone(r));
     },
     async save(record, expected) {
+      if (record.revision !== expected + 1) return false;
       if ((records.get(record.mission.mission_id)?.revision ?? 0) !== expected)
         return false;
       records.set(record.mission.mission_id, structuredClone(record));
@@ -47,6 +48,7 @@ export function createPostgresMissionRepository(
       ).map((r) => r.record);
     },
     async save(record, expected) {
+      if (record.revision !== expected + 1) return false;
       const params = [
         record.mission.mission_id,
         record.revision,

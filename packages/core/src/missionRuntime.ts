@@ -8,10 +8,11 @@ import {
   RuntimeError,
   validateRuntimeContract,
 } from "./runtimeContracts";
+import type { ArtifactRepository } from "./runtimeArtifactRepository";
 import type { MissionRepository } from "./missionRepository";
 import { registryV1 } from "./registryV1";
 
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type {
   MissionState,
   AgentManifest,
@@ -76,6 +77,7 @@ export class MissionRuntime {
       capabilities: CapabilityManifest[];
     },
     private now = () => new Date().toISOString(),
+    private artifacts?: ArtifactRepository,
   ) {
     const agents = new Set<string>(),
       caps = new Set<string>();
@@ -356,19 +358,113 @@ export class MissionRuntime {
     }
     demand(r.revision === c.expected_revision, "Stale mission revision");
     demand(!terminal.has(d.status), "Terminal mission is immutable");
+    const pending = r.handoffs.find((h) => h.status === "PENDING");
     demand(
-      principal.role === "operator" || principal.actor === d.assigned_agent_id,
+      principal.role === "operator" ||
+        principal.actor === d.assigned_agent_id ||
+        (c.type === "accept_handoff" &&
+          pending?.to_agent_id === principal.actor),
       "Agent does not own delegation",
       403,
     );
+    const requireLease = () => {
+      const currentPolicy = this.policy(r.mission, principal.actor);
+      demand(
+        currentPolicy?.agent &&
+          currentPolicy.fingerprint === d.policy_fingerprint,
+        "Worker authority revoked",
+        403,
+      );
+      demand(
+        r.lease &&
+          r.lease.agent_id === principal.actor &&
+          r.lease.token === c.lease_token &&
+          Date.parse(r.lease.expires_at) > Date.parse(this.now()),
+        "Valid execution lease required",
+        403,
+      );
+    };
+    if (
+      principal.role === "agent" &&
+      !["claim", "accept_handoff", "approve", "reject", "review"].includes(
+        c.type,
+      )
+    )
+      requireLease();
+    if (
+      principal.role === "operator" &&
+      r.lease &&
+      Date.parse(r.lease.expires_at) > Date.parse(this.now()) &&
+      !(c.type === "transition" && c.state === "CANCELLED") &&
+      c.type !== "review"
+    )
+      demand(
+        false,
+        "Worker owns a live execution lease; cancel or await expiry",
+      );
     const operator = () =>
       demand(
         principal.role === "operator",
         "Operator review/approval required",
         403,
       );
-    const pending = r.handoffs.find((h) => h.status === "PENDING");
-    if (c.type === "approve" || c.type === "reject") {
+    if (c.type === "claim") {
+      demand(
+        principal.role === "agent" && principal.actor === d.assigned_agent_id,
+        "Only assigned worker can claim",
+        403,
+      );
+      demand(
+        !pending && ["ASSIGNED", "BLOCKED", "RUNNING"].includes(d.status),
+        "Mission not claimable",
+      );
+      demand(
+        !r.lease || Date.parse(r.lease.expires_at) <= Date.parse(this.now()),
+        "Execution lease already held",
+      );
+      const p = this.policy(r.mission, principal.actor);
+      demand(
+        p?.agent && p.fingerprint === d.policy_fingerprint,
+        "Authority changed; execution denied",
+        403,
+      );
+      demand(
+        ["execute", "execute_with_approval"].includes(
+          p.agent.approval_policy.default_tier,
+        ),
+        "Non-executing autonomy",
+        403,
+      );
+      if (p.state === "NEEDS_APPROVAL")
+        demand(
+          r.permissionRequests.at(-1)?.status === "APPROVED" &&
+            r.permissionRequests.at(-1)?.policy_fingerprint === p.fingerprint,
+          "Approval required",
+          403,
+        );
+      r.lease = {
+        token: randomUUID(),
+        attempt_id: c.attempt_id,
+        agent_id: principal.actor,
+        epoch: (r.lease?.epoch ?? 0) + 1,
+        expires_at: new Date(
+          Date.parse(this.now()) + c.ttl_seconds * 1000,
+        ).toISOString(),
+      };
+      r.blockers = [];
+      this.event(
+        r,
+        "RUNNING",
+        principal.actor,
+        "Worker claimed execution lease",
+      );
+    } else if (c.type === "heartbeat") {
+      requireLease();
+      r.lease!.expires_at = new Date(
+        Date.parse(this.now()) + c.ttl_seconds * 1000,
+      ).toISOString();
+      this.event(r, d.status, principal.actor, "Worker lease heartbeat");
+    } else if (c.type === "approve" || c.type === "reject") {
       operator();
       demand(d.status === "NEEDS_APPROVAL", "No approval pending");
       const p = this.policy(r.mission, d.assigned_agent_id ?? "");
@@ -404,6 +500,11 @@ export class MissionRuntime {
       );
       demand(!pending || c.state === "CANCELLED", "Handoff acceptance pending");
       if (c.state === "RUNNING") {
+        demand(
+          principal.role === "operator",
+          "Workers must claim a lease before execution",
+          403,
+        );
         const p = this.policy(r.mission, d.assigned_agent_id ?? "");
         demand(
           p?.agent && p.fingerprint === d.policy_fingerprint,
@@ -434,6 +535,17 @@ export class MissionRuntime {
           "Required evidence missing",
         );
         demand(c.result, "Completion result required", 400);
+        if (r.lease)
+          demand(
+            r.evidence.some((e) => e.verification_level === "HASH_VERIFIED") &&
+              d.evidence_required.every((kind) =>
+                r.evidence.some(
+                  (e) =>
+                    e.kind === kind && e.verification_level === "HASH_VERIFIED",
+                ),
+              ),
+            "Worker result requires stored verified evidence for every required output",
+          );
         r.completionResult = c.result;
       }
       r.blockers = c.state === "BLOCKED" ? [c.reason] : [];
@@ -447,6 +559,22 @@ export class MissionRuntime {
         !r.evidence.some((e) => e.artifact_id === c.artifact_id),
         "Duplicate artifact id",
       );
+      let verification: "CLAIMED" | "HASH_VERIFIED" = "CLAIMED";
+      if (c.uri.startsWith("urn:tip:artifact:")) {
+        demand(this.artifacts, "Artifact storage unavailable", 503);
+        const body = await this.artifacts.get(c.sha256);
+        demand(
+          body &&
+            c.uri === `urn:tip:artifact:${c.sha256}` &&
+            body.kind === c.kind &&
+            body.mission_id === id &&
+            createHash("sha256").update(canonicalJson(body)).digest("hex") ===
+              c.sha256,
+          "Stored artifact verification failed",
+          400,
+        );
+        verification = "HASH_VERIFIED";
+      }
       r.evidence.push({
         ...this.base(r),
         artifact_id: c.artifact_id,
@@ -454,6 +582,7 @@ export class MissionRuntime {
         uri: c.uri,
         sha256: c.sha256,
         summary: c.summary,
+        verification_level: verification,
         attached_by: principal.actor,
         created_at: this.now(),
       });
@@ -461,7 +590,9 @@ export class MissionRuntime {
         r,
         d.status,
         principal.actor,
-        "Evidence reference attached (content not independently verified)",
+        verification === "HASH_VERIFIED"
+          ? "Stored artifact hash verified"
+          : "Evidence reference attached (content not independently verified)",
       );
     } else if (c.type === "failure") {
       demand(
@@ -517,7 +648,12 @@ export class MissionRuntime {
       r.blockers = [c.reason];
       this.event(r, "BLOCKED", principal.actor, "Awaiting handoff acceptance");
     } else if (c.type === "accept_handoff") {
-      operator();
+      demand(
+        principal.role === "operator" ||
+          pending?.to_agent_id === principal.actor,
+        "Only recipient or operator can accept",
+        403,
+      );
       demand(
         pending && pending.handoff_id === c.handoff_id,
         "Handoff not pending",
@@ -560,6 +696,7 @@ export class MissionRuntime {
         c.note,
       );
     }
+    if (r.lease && d.status !== "RUNNING") r.lease.expires_at = this.now();
     r.revision++;
     r.receipts[c.command_id] = { input: receiptInput, revision: r.revision };
     this.validateRecord(r);

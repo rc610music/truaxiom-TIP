@@ -7,13 +7,16 @@ import {
   type AgentManifest,
   type CapabilityManifest,
   type OperatorAuthConfig,
+  type ArtifactRepository,
 } from "@truaxiom/core";
 
 /** Repository-owned manifests only. An HTTP caller cannot register or elevate an agent. */
-export async function loadRuntimeCatalog() {
+export async function loadRuntimeCatalog(profile = "default") {
+  if (!["default", "repository-inspection"].includes(profile))
+    throw new RuntimeError(400, "Unknown trusted runtime catalog profile");
   async function load(directory: string): Promise<unknown[]> {
     const url = new URL(
-      `../../../packages/contracts/${directory}/`,
+      `../../../packages/contracts/${profile === "repository-inspection" ? "runtime-003/" : ""}${directory}/`,
       import.meta.url,
     );
     const files = (await readdir(fileURLToPath(url)))
@@ -37,6 +40,7 @@ export interface RuntimeApiRequest {
 export function createMissionRuntimeApi(
   runtime: MissionRuntime,
   auth: OperatorAuthConfig,
+  artifacts?: ArtifactRepository,
 ) {
   return async (
     request: RuntimeApiRequest,
@@ -69,6 +73,21 @@ export function createMissionRuntimeApi(
             status: 200,
             body: await runtime.create(request.body, principal),
           };
+      }
+      const evidencePath = request.path.match(
+        /^\/v1\/runtime\/missions\/([^/]+)\/artifacts\/([a-f0-9]{64})$/,
+      );
+      if (evidencePath && request.method === "GET") {
+        const record = await runtime.get(decodeURIComponent(evidencePath[1]));
+        if (!record.evidence.some((e) => e.sha256 === evidencePath[2]))
+          throw new RuntimeError(404, "Artifact not attached to mission");
+        const body = await artifacts?.get(evidencePath[2]);
+        if (!body || body.mission_id !== record.mission.mission_id)
+          throw new RuntimeError(404, "Stored artifact not found");
+        return {
+          status: 200,
+          body: { sha256: evidencePath[2], artifact: body },
+        };
       }
       const match = request.path.match(
         /^\/v1\/runtime\/missions\/([^/]+)(?:\/(commands|bridge))?$/,

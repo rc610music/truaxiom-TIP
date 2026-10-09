@@ -12,6 +12,24 @@ export function RuntimeMissions() {
   );
   const [source, setSource] = useState("");
   const [busy, setBusy] = useState(false);
+  const [report, setReport] = useState<unknown>(null);
+  async function inspectReport(missionId: string, sha: string) {
+    setBusy(true);
+    try {
+      const response = await fetch(
+        `${getApiBaseUrl()}/v1/runtime/missions/${encodeURIComponent(missionId)}/artifacts/${sha}`,
+        {
+          headers: { Authorization: `Bearer ${secret.current}` },
+        },
+      );
+      if (!response.ok) throw new Error("Stored report unavailable.");
+      setReport(await response.json());
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Report unavailable.");
+    } finally {
+      setBusy(false);
+    }
+  }
   async function refresh() {
     setBusy(true);
     try {
@@ -37,7 +55,7 @@ export function RuntimeMissions() {
       setStatus(
         data.missions.length
           ? "Mission states loaded."
-          : "No missions recorded. No execution agents are activated by this release.",
+          : "No missions recorded.",
       );
     } catch (error) {
       setMissions([]);
@@ -52,7 +70,7 @@ export function RuntimeMissions() {
   return (
     <article className="panel">
       <div className="panel-heading">
-        <p className="eyebrow">Taxis · Runtime 002</p>
+        <p className="eyebrow">Taxis · Runtime 003</p>
         <strong>Mission lifecycle</strong>
       </div>
       <form
@@ -81,6 +99,7 @@ export function RuntimeMissions() {
             setEntry("");
             setMissions([]);
             setSource("");
+            setReport(null);
             setStatus("Disconnected.");
           }}
         >
@@ -113,6 +132,18 @@ export function RuntimeMissions() {
               {m.evidence.length} evidence references · {m.handoffs.length}{" "}
               handoffs · {m.failures.length} failures
             </span>
+            {m.evidence
+              .filter((e) => e.verification_level === "HASH_VERIFIED")
+              .map((e) => (
+                <button
+                  type="button"
+                  key={e.artifact_id}
+                  disabled={busy}
+                  onClick={() => void inspectReport(m.mission_id, e.sha256)}
+                >
+                  Inspect stored {e.kind}
+                </button>
+              ))}
             {m.completion_result && (
               <p>
                 {m.state === "COMPLETED"
@@ -124,6 +155,17 @@ export function RuntimeMissions() {
           </div>
         ))}
       </div>
+      {report !== null && (
+        <details open>
+          <summary>Stored evidence report</summary>
+          <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+            {JSON.stringify(report, null, 2)}
+          </pre>
+          <button type="button" onClick={() => setReport(null)}>
+            Close report
+          </button>
+        </details>
+      )}
     </article>
   );
 }

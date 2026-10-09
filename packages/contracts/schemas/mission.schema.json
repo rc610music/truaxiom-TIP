@@ -72,6 +72,23 @@
       },
       "uniqueItems": true,
       "maxItems": 100
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "ref"
+      ],
+      "properties": {
+        "repository": {
+          "const": "rc610music/truaxiom-TIP"
+        },
+        "ref": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$"
+        }
+      }
     }
   }
 }

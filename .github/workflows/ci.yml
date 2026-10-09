@@ -36,3 +36,6 @@ jobs:
 
       - name: Validate TIP Runtime 002 lifecycle and restart persistence
         run: npm run test:runtime-002
+
+      - name: Validate TIP Runtime 003 worker and bridge
+        run: npm run test:runtime-003

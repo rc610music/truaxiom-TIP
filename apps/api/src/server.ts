@@ -1,3 +1,7 @@
+import {
+  createRuntimeWorkerApi,
+  readWorkerCredentials,
+} from "./runtimeWorkerApi";
 import { createServer } from "node:http";
 import {
   MissionRuntime,
@@ -20,9 +24,20 @@ const config = readTipServerConfig();
 const persistence = createApiPersistenceRuntime(config);
 const runtime = new MissionRuntime(
   persistence.missionRepository,
-  await loadRuntimeCatalog(),
+  await loadRuntimeCatalog(process.env.TIP_RUNTIME_CATALOG),
+  undefined,
+  persistence.runtimeArtifacts,
 );
-const runtimeApi = createMissionRuntimeApi(runtime, config.operatorAuth);
+const runtimeApi = createMissionRuntimeApi(
+  runtime,
+  config.operatorAuth,
+  persistence.runtimeArtifacts,
+);
+const workerApi = createRuntimeWorkerApi(
+  runtime,
+  persistence.runtimeArtifacts,
+  readWorkerCredentials(process.env.TIP_WORKER_CREDENTIAL_DIGESTS),
+);
 const registryLoad = await persistence.loadRegistry();
 
 if (registryLoad.error) {
@@ -166,7 +181,9 @@ const server = createServer(async (request, response) => {
   }
 
   if (url.pathname.startsWith("/v1/runtime/")) {
-    const result = await runtimeApi({
+    const result = await (
+      url.pathname.startsWith("/v1/runtime/worker/") ? workerApi : runtimeApi
+    )({
       method: request.method ?? "GET",
       path: url.pathname,
       body,

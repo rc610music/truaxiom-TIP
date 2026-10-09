@@ -1,0 +1,70 @@
+{
+  "agent_id": "AGENT-REPOSITORY-INSPECTOR",
+  "name": "Repository Inspector",
+  "version": "1.0.0",
+  "owner": "ORG-TRUAXIOM",
+  "role": "read-only repository inspection",
+  "description": "Deterministic metadata inspector implemented by repositoryInspector.ts; does not execute repository code.",
+  "objectives": [
+    "Report pinned repository state and available CI evidence"
+  ],
+  "scope": [
+    "PRJ-TIP"
+  ],
+  "exclusions": [
+    "write:github:rc610music:truaxiom-TIP",
+    "actions:production.promote",
+    "actions:credential.write"
+  ],
+  "lifecycle_state": "active",
+  "capabilities": [
+    "repository.inspect"
+  ],
+  "tools": [
+    "github.read-only-metadata"
+  ],
+  "data_sources": [
+    "github:rc610music:truaxiom-TIP"
+  ],
+  "memory_policy": {
+    "allowed_scopes": [
+      "run"
+    ],
+    "retention": "durable mission audit"
+  },
+  "permissions": {
+    "read": [
+      "github:rc610music:truaxiom-TIP"
+    ],
+    "write": [],
+    "actions": []
+  },
+  "approval_policy": {
+    "default_tier": "execute",
+    "approval_required_for": []
+  },
+  "triggers": [
+    "explicit-mission"
+  ],
+  "workflows": [
+    "WF-REPOSITORY-INSPECTION"
+  ],
+  "output_contracts": [
+    "repository-report"
+  ],
+  "escalation_policy": "Record failure; operator handles credentials/rate-limit blockers.",
+  "observability_policy": [
+    "lease",
+    "state-events",
+    "stored-evidence"
+  ],
+  "dependency_versions": {
+    "mission": "v1",
+    "delegation-envelope": "v2"
+  },
+  "tags": [
+    "runtime-003",
+    "read-only",
+    "development"
+  ]
+}

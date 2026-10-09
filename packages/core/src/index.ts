@@ -30,3 +30,6 @@ export * from "./taxisRuntime";
 export * from "./missionRuntime";
 export * from "./missionRepository";
 export * from "./runtimeContracts";
+export * from "./runtimeArtifactRepository";
+export * from "./repositoryInspector";
+export * from "./commandCenterRuntimeBridge";
