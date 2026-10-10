@@ -578,6 +578,7 @@ export class MissionRuntime {
           : "Evidence reference attached (content not independently verified)",
       );
     } else if (c.type === "failure") {
+      demand(!pending, "Handoff acceptance pending");
       demand(
         ["RUNNING", "BLOCKED"].includes(d.status),
         "Failure requires started work",

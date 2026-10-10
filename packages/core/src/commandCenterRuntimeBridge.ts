@@ -57,6 +57,12 @@ export async function synchronizeRuntimePacket(
     if (marker.revision >= packet.revision)
       return { task_id: task, revision: marker.revision, published: false };
   }
+  // Frozen Command Center baseline 0d3b53cb limits post_evidence uri to 2000.
+  // Refuse before any ledger write so an overlong TIP artifact is not published.
+  for (const artifact of packet.evidence) {
+    if (artifact.uri.length > 2000)
+      throw new RuntimeError(400, "Evidence URI exceeds Command Center limit");
+  }
   const write = async (
     path: string,
     id: string,

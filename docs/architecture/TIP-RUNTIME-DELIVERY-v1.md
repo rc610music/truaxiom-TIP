@@ -92,9 +92,12 @@ policy and customer isolation are subsequent platform work.
   branch `br-small-pond-ar3y2w0l` (`tip-core`). The original completed mission is
   still COMPLETED at revision 7. Delivery count is zero because no live project
   mapping or service credential was invented.
-- Latest Command Center candidate deployment independently checked via Render:
-  `dep-db405un5jdgc73docvug`, commit `515f353634615dea2d08254f2676b8478c8dcaaf`.
-  Public `/health` returned 200 with the same commit and process-liveness scope.
+- Command Center compatibility was rechecked against the frozen baseline
+  `0d3b53cba1732a7fce9f68502255b3526926126a` (not certified). An earlier
+  health check reported deploy `dep-db405un5jdgc73docvug` at checkpoint
+  `515f353634615dea2d08254f2676b8478c8dcaaf`. That checkpoint is not the
+  current baseline. Public `/health` at that earlier check returned 200
+  with process-liveness scope.
 
 Still awaiting owner configuration: authorized candidate service identity and
 project/environment mapping, then deploy/verify the separate development runtime

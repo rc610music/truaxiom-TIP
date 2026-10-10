@@ -400,6 +400,37 @@ test("stored evidence rejects forged hashes and foreign mission content", async 
     400,
   );
 });
+test("expired lease does not let CLAIMED evidence count as verified", async () => {
+  const { runtime, tick } = await setup();
+  await runtime.create(mission("M1"), operator);
+  const r = await cmd(runtime, "M1", "claim", {
+    ttl_seconds: 30,
+    attempt_id: "A",
+  });
+  await cmd(runtime, "M1", "evidence", {
+    artifact_id: "E1",
+    kind: "repository-report",
+    uri: "https://example.test/fake",
+    sha256: "a".repeat(64),
+    summary: "claim only",
+    lease_token: r.lease.token,
+  });
+  tick(31);
+  await rejects(
+    () =>
+      cmd(
+        runtime,
+        "M1",
+        "transition",
+        { state: "REVIEW", reason: "done", result: "done" },
+        operator,
+      ),
+    409,
+  );
+  const saved = await runtime.get("M1");
+  assert.equal(saved.delegation.status, "RUNNING");
+  assert.equal(saved.evidence[0].verification_level, "CLAIMED");
+});
 test("external claimed evidence cannot complete a leased worker mission", async () => {
   const { runtime } = await setup();
   await runtime.create(mission("M1"), operator);
