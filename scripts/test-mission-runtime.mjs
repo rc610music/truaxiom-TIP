@@ -447,6 +447,54 @@ function evidenceAsWrongAgent(rt) {
     { actor: "A", role: "agent" },
   );
 }
+test("pending handoff blocks failure and still allows operator cancellation", async () => {
+  const { runtime } = setup();
+  await running(runtime);
+  await command(runtime, "M1", "handoff", {
+    handoff_id: "H1",
+    to_agent_id: "B",
+    reason: "Specialist needed",
+  });
+  await rejects(
+    () =>
+      command(runtime, "M1", "failure", {
+        failure_id: "F1",
+        code: "STOP",
+        message: "Abandon during handoff",
+        retryable: false,
+      }),
+    409,
+  );
+  const blocked = await runtime.get("M1");
+  assert.equal(blocked.delegation.status, "BLOCKED");
+  assert.equal(blocked.handoffs[0].status, "PENDING");
+  assert.equal(blocked.failures.length, 0);
+  const cancelled = await command(runtime, "M1", "transition", {
+    state: "CANCELLED",
+    reason: "Operator cancelled pending handoff",
+  });
+  assert.equal(cancelled.delegation.status, "CANCELLED");
+
+  await running(runtime, "M2");
+  await command(runtime, "M2", "handoff", {
+    handoff_id: "H2",
+    to_agent_id: "B",
+    reason: "Specialist needed",
+  });
+  await command(runtime, "M2", "accept_handoff", { handoff_id: "H2" });
+  await command(runtime, "M2", "transition", {
+    state: "RUNNING",
+    reason: "Recipient started",
+  });
+  const failed = await command(runtime, "M2", "failure", {
+    failure_id: "F2",
+    code: "STOP",
+    message: "Failed after acceptance",
+    retryable: false,
+  });
+  assert.equal(failed.delegation.status, "FAILED");
+  assert.equal(failed.handoffs[0].status, "ACCEPTED");
+});
 test("handoff rejects inactive or revoked targets", async () => {
   const { runtime, catalog } = setup();
   await running(runtime);

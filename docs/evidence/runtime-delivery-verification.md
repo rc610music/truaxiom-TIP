@@ -8,8 +8,9 @@ Base commit: `081ffcee293ddb95624100807ce31ca16c175171`.
 - Runtime 001, registry, Postgres adapter, safety stack, API loop and foundation checks: PASS.
 - Workspace typecheck, API build, Mission Control preview build and diff whitespace check: PASS.
 - Manual migration 014: applied only on `br-small-pond-ar3y2w0l`; existing mission COMPLETED revision 7 preserved, no live queue records seeded.
-- Command Center `/health`: HTTP 200, commit `515f353634615dea2d08254f2676b8478c8dcaaf`.
-- Render latest candidate deployment: `dep-db405un5jdgc73docvug`, LIVE at that commit.
+- Command Center compatibility baseline: `0d3b53cba1732a7fce9f68502255b3526926126a` (frozen, not certified).
+- Historical `/health` check: HTTP 200 at earlier checkpoint `515f353634615dea2d08254f2676b8478c8dcaaf`.
+- Render candidate deployment recorded then: `dep-db405un5jdgc73docvug`.
 
 Automated delivery uses an explicit test ledger and PGlite (including a disk
 close/reopen). It is not live candidate delivery. Existing isolated Neon was

@@ -22,8 +22,10 @@ Development continuation of Runtime 002 commit `59959a0fccc34503a89950f20724d9bd
 | Actual candidate Agent Comms ledger model | PASS: task, evidence, packet parts, commit marker and duplicate suppression; Dot gate retained |
 | Actual GitHub + Neon development mission | COMPLETED revision 7; report and aggregate recovered through a new runtime and fresh remote SQL reads |
 
-The candidate model integration was an additional temporary harness using the fetched
-Command Center PR #16 source at `515f353634615dea2d08254f2676b8478c8dcaaf`.
+The candidate model integration was an additional temporary harness using fetched
+Command Center source. The frozen compatibility baseline is
+`0d3b53cba1732a7fce9f68502255b3526926126a`. The harness originally used earlier
+checkpoint `515f353634615dea2d08254f2676b8478c8dcaaf`.
 It did not send candidate requests or modify Command Center. The reusable four
 bridge tests are committed; no external model copy was added to TIP.
 

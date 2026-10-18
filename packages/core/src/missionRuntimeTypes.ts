@@ -165,6 +165,7 @@ export interface RuntimePrincipal {
   role: "operator" | "agent";
 }
 export interface MissionRecord {
+  routingDecision?: RoutingDecision;
   mission: MissionInput;
   delegation: DelegationEnvelope;
   revision: number;
@@ -181,6 +182,7 @@ export interface MissionRecord {
 }
 
 export interface HandoffPacket {
+  operations?: RuntimeOperations;
   schema_version: "1.0";
   source: "TIP";
   mission_id: string;
@@ -196,4 +198,22 @@ export interface HandoffPacket {
   review_required: boolean;
   completion_result: string | null;
   updated_at: string;
+}
+
+export interface RoutingDecision {
+  selected_agent: string | null;
+  selection_reason: string;
+  candidates: { agent_id: string; eligible: boolean; reasons: string[]; capability_status: "DECLARED" }[];
+  fallback_candidates: string[];
+}
+export interface RuntimeOperations {
+  title: string;
+  required_capabilities: string[];
+  required_permissions: string[];
+  routing: RoutingDecision | null;
+  latest_event: StateEvent;
+  approval_status: "PENDING" | "OPERATOR_APPROVED" | "REJECTED" | "NOT_REQUIRED";
+  verification_status: "UNVERIFIED" | "CLAIMED" | "HASH_VERIFIED";
+  independent_verification: "NOT_RECORDED";
+  next_action: string;
 }

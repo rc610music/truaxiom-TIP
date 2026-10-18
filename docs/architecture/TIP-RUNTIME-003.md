@@ -100,8 +100,10 @@ host-supplied `TIP_CC_EXISTING_TOKEN`. No credential is written to disk.
 
 This is an explicit synchronization adapter, not a background outbox. Writes
 conflicting with an executive checkpoint stop safely; rerun after reading current
-state. The exact candidate model at Command Center PR #16 head
-`515f353634615dea2d08254f2676b8478c8dcaaf` was exercised locally without copying it
+state. Compatibility for this review uses the frozen Command Center baseline
+`0d3b53cba1732a7fce9f68502255b3526926126a` on PR #16 (not certified). The
+candidate model was first exercised locally at an earlier checkpoint,
+`515f353634615dea2d08254f2676b8478c8dcaaf`, without copying it
 into TIP. Real candidate delivery remains blocked on credential authorization.
 
 ## Development proof and limits

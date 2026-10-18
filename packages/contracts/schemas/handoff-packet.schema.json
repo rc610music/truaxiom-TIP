@@ -114,6 +114,126 @@
         "$ref": "https://schemas.truaxiom.llc/tip/failure-event/v1"
       },
       "maxItems": 100
+    },
+    "operations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "required_capabilities",
+        "required_permissions",
+        "routing",
+        "latest_event",
+        "approval_status",
+        "verification_status",
+        "independent_verification",
+        "next_action"
+      ],
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "required_capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "required_permissions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "routing": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "selected_agent",
+                "selection_reason",
+                "candidates",
+                "fallback_candidates"
+              ],
+              "properties": {
+                "selected_agent": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "selection_reason": {
+                  "type": "string"
+                },
+                "fallback_candidates": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "candidates": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "agent_id",
+                      "eligible",
+                      "reasons",
+                      "capability_status"
+                    ],
+                    "properties": {
+                      "agent_id": {
+                        "type": "string"
+                      },
+                      "eligible": {
+                        "type": "boolean"
+                      },
+                      "reasons": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "capability_status": {
+                        "const": "DECLARED"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "latest_event": {
+          "$ref": "https://schemas.truaxiom.llc/tip/state-event/v1"
+        },
+        "approval_status": {
+          "enum": [
+            "PENDING",
+            "OPERATOR_APPROVED",
+            "REJECTED",
+            "NOT_REQUIRED"
+          ]
+        },
+        "verification_status": {
+          "enum": [
+            "UNVERIFIED",
+            "CLAIMED",
+            "HASH_VERIFIED"
+          ]
+        },
+        "independent_verification": {
+          "const": "NOT_RECORDED"
+        },
+        "next_action": {
+          "type": "string"
+        }
+      }
     }
   }
 }
