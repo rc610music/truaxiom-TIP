@@ -127,8 +127,11 @@ writes are available through the API; no new mission editor or runner UI is clai
 
 ## Command Center bridge (interface, not live delivery)
 
-Reconciled against `rc610music/truaxiom` PR #16 / commit
-`515f353634615dea2d08254f2676b8478c8dcaaf`, specifically
+Reconciled against `rc610music/truaxiom` PR #16. The frozen compatibility
+baseline for this review is `0d3b53cba1732a7fce9f68502255b3526926126a`
+(not certified). An earlier checkpoint,
+`515f353634615dea2d08254f2676b8478c8dcaaf`, was current when Runtime 002
+was drafted; it is not the current baseline. Source files reviewed:
 `command-center/docs/TIP-OPERATIONS-001.md`, `AGENT_COMMS_ARCHITECTURE.md`, and
 `server/agent-comms-model.ts`. No Command Center source or deployment was changed.
 
@@ -181,3 +184,6 @@ consumer using explicit mappings and existing ledger APIs. Add authenticated rec
 handoff acceptance, durable policy administration, operator write UI and live Neon
 integration tests. Keep SaaS tenants, billing, production promotion and generalized
 AI autonomy outside that first worker slice.
+
+
+Current continuation and deployment observations: see `TIP-RUNTIME-INTEGRATION-20261018.md`. Frozen baseline references above are historical review context, not the current deployed candidate.

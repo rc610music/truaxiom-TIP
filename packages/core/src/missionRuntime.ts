@@ -167,6 +167,21 @@ export class MissionRuntime {
     return {
       cap,
       agent,
+      routing: {
+        selected_agent: agent?.agent_id ?? null,
+        selection_reason: agent ? "Deterministic capability, scope, output and permission match; agent ID breaks equal eligibility ties." : "No eligible agent satisfies capability, scope, output and permission boundaries.",
+        candidates: [...this.catalog.agents].sort((a,b) => a.agent_id < b.agent_id ? -1 : a.agent_id > b.agent_id ? 1 : 0).map(a => {
+          const reasons = [
+            ...(onlyAgent && a.agent_id !== onlyAgent ? ["Different handoff recipient"] : []),
+            ...(a.lifecycle_state !== "active" ? ["Agent is not active"] : []),
+            ...(!a.capabilities.includes(m.capability_id) ? ["Capability not declared"] : []),
+            ...(!agents.includes(a) ? ["Scope, exclusion or output contract mismatch"] : []),
+            ...(!permissions.every(p => runtimeAgent(a).permissions.includes(p)) ? ["Required permission missing"] : []),
+          ];
+          return { agent_id: a.agent_id, eligible: reasons.length === 0, reasons, capability_status: "DECLARED" as const };
+        }),
+        fallback_candidates: agents.filter(a => a.agent_id !== agent?.agent_id && a.lifecycle_state === "active" && a.capabilities.includes(m.capability_id) && permissions.every(p => runtimeAgent(a).permissions.includes(p))).map(a => a.agent_id).sort(),
+      },
       permissions,
       risk,
       state: !agent ? "UNROUTABLE" : gated ? "NEEDS_APPROVAL" : "ASSIGNED",
@@ -271,6 +286,7 @@ export class MissionRuntime {
       delegationId = `D:${m.mission_id}`;
     const r: MissionRecord = {
       mission: m,
+      ...(p ? { routingDecision: p.routing } : {}),
       createdBy: principal.actor,
       revision: 1,
       delegation: {
@@ -578,6 +594,7 @@ export class MissionRuntime {
           : "Evidence reference attached (content not independently verified)",
       );
     } else if (c.type === "failure") {
+      demand(!pending, "Handoff acceptance pending");
       demand(
         ["RUNNING", "BLOCKED"].includes(d.status),
         "Failure requires started work",
@@ -642,6 +659,7 @@ export class MissionRuntime {
         "Handoff not pending",
       );
       const p = this.policy(r.mission, pending.to_agent_id);
+      if (p) r.routingDecision = p.routing;
       demand(p?.agent, "Target agent authority revoked", 403);
       pending.status = "ACCEPTED";
       pending.accepted_by = principal.actor;

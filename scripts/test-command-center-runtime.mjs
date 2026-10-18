@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import {
   synchronizeRuntimePacket,
   createCommandCenterCandidateTransport,
@@ -138,6 +139,84 @@ test("bridge refuses undeclared mappings and production environment", async () =
   );
   assert.equal(l.calls.length, 0);
 });
+const commandCenterVerifiedLevels = [
+  "OBSERVED",
+  "API_VERIFIED",
+  "UI_VERIFIED",
+  "TEST_VERIFIED",
+  "PRODUCTION_VERIFIED",
+];
+test("bridge keeps CLAIMED evidence below Command Center verified levels and rejects overlong URIs", async () => {
+  const prefix = "https://example.test/";
+  const acceptedUri = prefix + "a".repeat(2000 - prefix.length);
+  const rejectedUri = prefix + "b".repeat(2001 - prefix.length);
+  assert.equal(acceptedUri.length, 2000);
+  assert.equal(rejectedUri.length, 2001);
+  const evidence = {
+    schema_version: "1.0",
+    mission_id: "M1",
+    delegation_id: "D1",
+    artifact_id: "E1",
+    kind: "repository-report",
+    sha256: "a".repeat(64),
+    summary: "Real report",
+    verification_level: "HASH_VERIFIED",
+    attached_by: "A",
+    created_at: "2026-10-09T12:00:00Z",
+  };
+  const accepted = ledger();
+  await synchronizeRuntimePacket(
+    { ...packet(), evidence: [{ ...evidence, uri: acceptedUri }] },
+    mapping,
+    accepted,
+  );
+  assert.equal(accepted.view.evidence[0].uri.length, 2000);
+  assert.equal(accepted.view.evidence[0].verification_level, "CLAIMED");
+  assert.equal(
+    commandCenterVerifiedLevels.includes(
+      accepted.view.evidence[0].verification_level,
+    ),
+    false,
+  );
+  assert.equal(accepted.view.evidence[0].requires_dot, true);
+  assert.equal(accepted.view.evidence[0].authority_type, "DOT_APPROVAL");
+  const rejected = ledger();
+  await assert.rejects(
+    () =>
+      synchronizeRuntimePacket(
+        { ...packet(), evidence: [{ ...evidence, uri: rejectedUri }] },
+        mapping,
+        rejected,
+      ),
+    (e) => e.status === 400,
+  );
+  assert.equal(rejected.calls.length, 0);
+});
+test("architecture docs cite frozen Command Center baseline 0d3b53cb", async () => {
+  const files = [
+    "../docs/architecture/TIP-RUNTIME-002.md",
+    "../docs/architecture/TIP-RUNTIME-003.md",
+    "../docs/architecture/TIP-RUNTIME-DELIVERY-v1.md",
+    "../docs/evidence/runtime-003-verification.md",
+    "../docs/evidence/runtime-delivery-verification.md",
+  ];
+  for (const file of files) {
+    const text = await readFile(new URL(file, import.meta.url), "utf8");
+    assert.match(text, /0d3b53cba1732a7fce9f68502255b3526926126a/);
+    assert.doesNotMatch(
+      text,
+      /PR #16[^\n]{0,80}515f353634615dea2d08254f2676b8478c8dcaaf/,
+    );
+    assert.doesNotMatch(
+      text,
+      /head[\s\n`]*515f353634615dea2d08254f2676b8478c8dcaaf/,
+    );
+    assert.doesNotMatch(
+      text,
+      /Latest Command Center[\s\S]{0,220}515f353634615dea2d08254f2676b8478c8dcaaf/,
+    );
+  }
+});
 test("candidate HTTP transport pins host, rejects redirects, and does not leak provider error text", async () => {
   let call;
   const t = createCommandCenterCandidateTransport(
@@ -170,4 +249,173 @@ test("candidate HTTP transport pins host, rejects redirects, and does not leak p
     (e) => e.status === 401 && !e.message.includes("sensitive"),
   );
   assert.throws(() => createCommandCenterCandidateTransport(""));
+});
+
+test("bridge requires complete packet parts before trusting a commit marker", async () => {
+  for (const corruption of [
+    "orphan",
+    "missing",
+    "tampered",
+    "duplicate",
+    "bad-marker",
+  ]) {
+    const l = ledger();
+    await synchronizeRuntimePacket(packet(), mapping, l);
+    if (corruption === "orphan")
+      l.view.messages = l.view.messages.filter((m) =>
+        m.body.startsWith("TIP_RUNTIME_COMMIT "),
+      );
+    if (corruption === "missing")
+      l.view.messages = l.view.messages.filter(
+        (m) => !m.body.startsWith("TIP_RUNTIME_PART "),
+      );
+    if (corruption === "tampered")
+      l.view.messages.find((m) =>
+        m.body.startsWith("TIP_RUNTIME_PART "),
+      ).body += "altered";
+    if (corruption === "duplicate")
+      l.view.messages.push(
+        structuredClone(
+          l.view.messages.find((m) => m.body.startsWith("TIP_RUNTIME_PART ")),
+        ),
+      );
+    if (corruption === "bad-marker")
+      l.view.messages.find((m) =>
+        m.body.startsWith("TIP_RUNTIME_COMMIT "),
+      ).body = 'TIP_RUNTIME_COMMIT {"revision":999999}';
+    const count = l.calls.length;
+    await assert.rejects(
+      () => synchronizeRuntimePacket(packet(), mapping, l),
+      (e) => e.status === 409,
+    );
+    assert.equal(l.calls.length, count, corruption);
+  }
+});
+
+test("bridge verifies newer revision recovery and cannot mask a conflicting same revision", async () => {
+  const l = ledger();
+  await synchronizeRuntimePacket(packet(1), mapping, l);
+  await synchronizeRuntimePacket(packet(2), mapping, l);
+  // Arrival ordering is not authority: recover the highest verified revision.
+  l.view.messages.reverse();
+  const count = l.calls.length;
+  const result = await synchronizeRuntimePacket(packet(1), mapping, l);
+  assert.equal(result.published, false);
+  assert.equal(result.revision, 2);
+  assert.equal(l.calls.length, count);
+  await assert.rejects(
+    () =>
+      synchronizeRuntimePacket(
+        { ...packet(1), completion_result: "Conflicting result" },
+        mapping,
+        l,
+      ),
+    (e) => e.status === 409,
+  );
+  assert.equal(l.calls.length, count);
+});
+
+test("bridge refuses a commit when its task or evidence reference disappeared", async () => {
+  const p = packet();
+  p.evidence = [
+    {
+      schema_version: "1.0",
+      mission_id: "M1",
+      delegation_id: "D1",
+      artifact_id: "E1",
+      kind: "repository-report",
+      uri: "urn:tip:artifact:" + "a".repeat(64),
+      sha256: "a".repeat(64),
+      summary: "Report",
+      verification_level: "HASH_VERIFIED",
+      attached_by: "A",
+      created_at: p.updated_at,
+    },
+  ];
+  for (const missing of ["task", "evidence"]) {
+    const l = ledger();
+    await synchronizeRuntimePacket(p, mapping, l);
+    l.view[missing === "task" ? "tasks" : "evidence"] = [];
+    const count = l.calls.length;
+    await assert.rejects(
+      () => synchronizeRuntimePacket(p, mapping, l),
+      (e) => e.status === 409,
+    );
+    assert.equal(l.calls.length, count);
+  }
+});
+
+test("bridge reconstructs a multi-part newer packet independent of ledger order", async () => {
+  const l = ledger();
+  const p = { ...packet(3), completion_result: "🧠 observation ".repeat(600) };
+  await synchronizeRuntimePacket(p, mapping, l);
+  assert.ok(
+    l.view.messages.filter((m) => m.body.startsWith("TIP_RUNTIME_PART "))
+      .length > 1,
+  );
+  l.view.messages.reverse();
+  const count = l.calls.length;
+  const result = await synchronizeRuntimePacket(packet(1), mapping, l);
+  assert.equal(result.published, false);
+  assert.equal(result.revision, 3);
+  assert.equal(l.calls.length, count);
+  l.view.messages.find((m) => m.body.startsWith("TIP_RUNTIME_PART ")).body +=
+    "tampered";
+  await assert.rejects(
+    () => synchronizeRuntimePacket(packet(1), mapping, l),
+    (e) => e.status === 409,
+  );
+});
+
+test("bridge refuses deterministic marker and part ID collisions on first publication", async () => {
+  const original = ledger();
+  await synchronizeRuntimePacket(packet(), mapping, original);
+  for (const prefix of ["TIP_RUNTIME_COMMIT ", "TIP_RUNTIME_PART "]) {
+    const l = ledger();
+    const collision = structuredClone(
+      original.view.messages.find((m) => m.body.startsWith(prefix)),
+    );
+    collision.body = "Unrelated body with reserved identifier";
+    l.view.messages.push(collision);
+    await assert.rejects(
+      () => synchronizeRuntimePacket(packet(), mapping, l),
+      (e) => e.status === 409,
+    );
+    assert.equal(
+      l.view.messages.some((m) => m.body.startsWith("TIP_RUNTIME_COMMIT ")),
+      false,
+    );
+  }
+});
+
+test("bridge verifies final stored publication instead of trusting POST success", async () => {
+  const l = ledger();
+  const write = l.write;
+  l.write = async (...args) => {
+    await write(...args);
+    if (args[1].body?.startsWith("TIP_RUNTIME_COMMIT ")) {
+      l.view.messages.find((m) =>
+        m.body.startsWith("TIP_RUNTIME_PART "),
+      ).body += "external alteration";
+    }
+  };
+  await assert.rejects(
+    () => synchronizeRuntimePacket(packet(), mapping, l),
+    (e) => e.status === 409,
+  );
+});
+
+test("missing obsolete packet parts do not block publication of a later revision", async () => {
+  const l = ledger();
+  await synchronizeRuntimePacket(packet(1), mapping, l);
+  l.view.messages = l.view.messages.filter(
+    (m) => !m.body.startsWith("TIP_RUNTIME_PART "),
+  );
+  const result = await synchronizeRuntimePacket(packet(2), mapping, l);
+  assert.equal(result.published, true);
+  assert.equal(result.revision, 2);
+  assert.equal(
+    (await synchronizeRuntimePacket(packet(2), mapping, l)).published,
+    false,
+  );
 });
