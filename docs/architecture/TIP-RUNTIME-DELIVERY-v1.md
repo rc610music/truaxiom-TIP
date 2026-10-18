@@ -103,3 +103,6 @@ Still awaiting owner configuration: authorized candidate service identity and
 project/environment mapping, then deploy/verify the separate development runtime
 and perform a real delivery. No production migration, DNS edit, frozen-build change,
 main merge, new stored secret or GrokBot involvement occurred.
+
+
+Current continuation and deployment observations: see `TIP-RUNTIME-INTEGRATION-20261018.md`. Frozen baseline references above are historical review context, not the current deployed candidate.

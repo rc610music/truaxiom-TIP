@@ -129,3 +129,6 @@ verify actual HTTP delivery and a deployed development restart, then add a durab
 delivery scheduler/outbox, bounded retries and reconciliation. Add further workers
 only with explicit capabilities and authority; production release remains a separate
 Dot decision.
+
+
+Current continuation and deployment observations: see `TIP-RUNTIME-INTEGRATION-20261018.md`. Frozen baseline references above are historical review context, not the current deployed candidate.

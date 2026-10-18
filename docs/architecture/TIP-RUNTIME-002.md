@@ -184,3 +184,6 @@ consumer using explicit mappings and existing ledger APIs. Add authenticated rec
 handoff acceptance, durable policy administration, operator write UI and live Neon
 integration tests. Keep SaaS tenants, billing, production promotion and generalized
 AI autonomy outside that first worker slice.
+
+
+Current continuation and deployment observations: see `TIP-RUNTIME-INTEGRATION-20261018.md`. Frozen baseline references above are historical review context, not the current deployed candidate.
