@@ -41,7 +41,9 @@
     "test:runtime-delivery": "node --import tsx --test scripts/test-runtime-delivery.mjs",
     "test:runtime-wake": "node --import tsx --test scripts/test-runtime-wake.mjs",
     "test:runtime-heartbeat": "node --import tsx --test scripts/test-runtime-heartbeat.mjs",
-    "prove:runtime-heartbeat": "node --import tsx scripts/prove-worker-delivery-heartbeat.mjs"
+    "test:independent-verification": "node --import tsx --test scripts/test-independent-verification.mjs",
+    "prove:runtime-heartbeat": "node --import tsx scripts/prove-worker-delivery-heartbeat.mjs",
+    "prove:agent-comms-heartbeat": "node --import tsx scripts/prove-agent-comms-heartbeat.mjs"
   },
   "engines": {
     "node": ">=20.0.0"

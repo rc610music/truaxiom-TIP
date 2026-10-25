@@ -49,6 +49,9 @@ export async function deliverNextRuntimePacket(
         tipProjectId: row.target.tip_project_id,
         commandCenterProjectId: row.target.command_center_project_id,
         env: row.target.environment,
+        ...(row.target.comms_recipient
+          ? { recipient: row.target.comms_recipient }
+          : {}),
       },
       fenced,
     );

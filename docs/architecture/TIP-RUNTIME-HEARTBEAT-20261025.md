@@ -20,15 +20,31 @@ after `COMPLETED` or `FAILED` does not inspect or publish again.
 mission, stored report, delivery rows, and ledger commit markers.
 
 The controlled condition is not a PIE dispatch. PIE proposal dispatch stays
-disabled in Command Center. The live proof reads public GitHub metadata with
-GET and publishes only to an in-process development ledger. It does not call
-the Command Center candidate host.
+disabled in Command Center. `npm run prove:runtime-heartbeat` reads public
+GitHub metadata with GET and publishes to an in-process development ledger.
+It does not call the Command Center candidate host.
 
-Run the deterministic suite with `npm run test:runtime-heartbeat`. Run the
-live read with `npm run prove:runtime-heartbeat`. The live observation, when
-it succeeds, is `docs/evidence/runtime-heartbeat-20261025.json`.
+`npm run prove:agent-comms-heartbeat` keeps that same mission and worker, then
+publishes the persisted packet through the existing Agent Comms HTTP
+dispatcher on a loopback process and a disposable `ops_private` database. The
+named recipient acknowledges the commit message. A restarted process rereads
+the task by id, and the recovered packet and evidence hashes must match TIP.
+The candidate Render host is still not contacted.
+
+After that reread, `recordIndependentVerification` stores one observer row in
+`tip_runtime_independent_verifications`. The observer is neither the worker
+nor the operator who completed the mission. The row does not change the
+mission revision or the executor packet. That packet keeps
+`independent_verification` as `NOT_RECORDED`. The lifecycle projection can say
+`RECORDED` while Dot approval, finding resolution, and PIE dispatch stay
+closed.
+
+Run `npm run test:runtime-heartbeat` and
+`npm run test:independent-verification` for the deterministic suites. The
+Agent Comms observation, when it succeeds, is
+`docs/evidence/agent-comms-heartbeat-20261025.json`.
 
 Still not proven: a PIE finding creating this mission, delivery to the live
-Agent Comms ledger, a deployed development host restart, external agent wake
-endpoints, and Dot approval. The packet keeps
-`independent_verification` as `NOT_RECORDED`.
+candidate ledger, Command Center's runtime read model still projecting
+independent verification as `NOT_RECORDED`, a deployed development host
+restart, external agent wake endpoints, and Dot approval.

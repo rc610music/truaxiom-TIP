@@ -13,6 +13,8 @@ export interface RuntimeDeliveryMapping {
   tip_project_id: string;
   command_center_project_id: string;
   environment: "development" | "preview";
+  /** Ledger recipient for message acknowledgment. Not an execution grant. */
+  comms_recipient?: string;
 }
 export interface RuntimeDelivery {
   delivery_id: string;

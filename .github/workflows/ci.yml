@@ -52,3 +52,6 @@ jobs:
       - name: Validate isolated worker and delivery heartbeat
         run: npm run test:runtime-heartbeat
 
+      - name: Validate independent verification beside the completed heartbeat
+        run: npm run test:independent-verification
+
