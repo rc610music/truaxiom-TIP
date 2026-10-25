@@ -3,6 +3,8 @@ import { fileURLToPath } from "node:url";
 import {
   MissionRuntime,
   RuntimeError,
+  runtimeWakeSummary,
+  runtimeExecutiveNotice,
   operatorSecretsMatch,
   type AgentManifest,
   type CapabilityManifest,
@@ -58,6 +60,10 @@ export function createMissionRuntimeApi(
       };
     const principal = { actor: auth.actor, role: "operator" as const };
     try {
+      if (request.path === "/v1/runtime/orchestration" && request.method === "GET") {
+        const records = await runtime.repository.list();
+        return { status: 200, body: { source: runtime.repository.source, missions: records.map(runtimeWakeSummary), notices: records.map(runtimeExecutiveNotice).filter(Boolean), notification_delivery: "NOT_CONFIGURED" } };
+      }
       if (
         request.path === "/v1/runtime/deliveries" &&
         request.method === "GET"
@@ -172,3 +178,4 @@ export function createMissionRuntimeApi(
     }
   };
 }
+

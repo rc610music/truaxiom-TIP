@@ -335,6 +335,15 @@ export class MissionRuntime {
     demand(r, "Mission not found", 404);
     return r;
   }
+  /** Host-only eligibility check. A wake never grants execution authority. */
+  wakeTarget(r: MissionRecord) {
+    const d = r.delegation;
+    if (d.status !== "ASSIGNED" || !d.assigned_agent_id || r.handoffs.some(h => h.status === "PENDING")) return null;
+    const p = this.policy(r.mission, d.assigned_agent_id);
+    if (!p?.agent || p.fingerprint !== d.policy_fingerprint) return null;
+    if (p.state === "NEEDS_APPROVAL" && !(r.permissionRequests.at(-1)?.status === "APPROVED" && r.permissionRequests.at(-1)?.policy_fingerprint === p.fingerprint)) return null;
+    return { recipient: d.assigned_agent_id, assignment_key: canonicalJson([d.delegation_id, d.assigned_agent_id, d.policy_fingerprint, r.handoffs.filter(h => h.status === "ACCEPTED").map(h => h.handoff_id), r.wake_generation ?? 0]) };
+  }
   packet(r: MissionRecord): HandoffPacket {
     return runtimeHandoffPacket(r);
   }
@@ -385,7 +394,7 @@ export class MissionRuntime {
     };
     if (
       principal.role === "agent" &&
-      !["claim", "accept_handoff", "approve", "reject", "review"].includes(
+      !["acknowledge_wake", "claim", "accept_handoff", "approve", "reject", "review"].includes(
         c.type,
       )
     )
@@ -407,7 +416,26 @@ export class MissionRuntime {
         "Operator review/approval required",
         403,
       );
-    if (c.type === "claim") {
+    if (c.type === "retry_wake") {
+      operator();
+      demand(r.wake?.status === "DEAD_LETTER" && this.wakeTarget(r), "Only a current dead-letter assignment can be retried");
+      (r.wake_history ??= []).push(structuredClone(r.wake));
+      delete r.wake;
+      r.wake_generation = (r.wake_generation ?? 0) + 1;
+      this.event(r, d.status, principal.actor, `Wake retry authorized: ${c.note}`);
+    } else if (c.type === "acknowledge_wake") {
+      const target = this.wakeTarget(r);
+      demand(principal.role === "agent" && target?.recipient === principal.actor, "Only current assigned recipient can acknowledge", 403);
+      demand(r.wake && r.wake.recorded_at && r.wake.wake_id === c.wake_id && r.wake.assignment_key === target.assignment_key && ["DISPATCHING", "SENT", "RETRY_PENDING"].includes(r.wake.status) && Date.parse(r.wake.due_at) > Date.parse(this.now()), "Wake is stale or unavailable");
+      r.wake.status = "ACKNOWLEDGED";
+      r.wake.acknowledged_by = principal.actor;
+      r.wake.acknowledged_at = this.now();
+      r.wake.lease_token = null;
+      r.wake.due_at = new Date(Date.parse(this.now()) + 120_000).toISOString();
+      r.wake.history.push({ at: this.now(), event: "ACKNOWLEDGED", attempt: r.wake.attempts });
+      this.event(r, d.status, principal.actor, "Wake acknowledged; execution has not started");
+    } else if (c.type === "claim") {
+      if (r.wake && d.status === "ASSIGNED") demand(r.wake.status === "ACKNOWLEDGED" && r.wake.recipient === principal.actor && r.wake.assignment_key === this.wakeTarget(r)?.assignment_key && Date.parse(r.wake.due_at) > Date.parse(this.now()), "Current wake acknowledgment required", 403);
       demand(
         principal.role === "agent" && principal.actor === d.assigned_agent_id,
         "Only assigned worker can claim",
@@ -713,3 +741,4 @@ export class MissionRuntime {
     return r;
   }
 }
+

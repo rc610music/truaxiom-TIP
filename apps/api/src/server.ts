@@ -16,6 +16,11 @@ import {
   readRuntimeDeliveryMappings,
   createCommandCenterCandidateTransport,
   deliverNextRuntimePacket,
+  readWakeBindings,
+  createHttpsWakeSender,
+  createWakeLedgerRecorder,
+  dispatchRuntimeWake,
+  RuntimeError,
 } from "@truaxiom/core";
 import { createApiPersistenceRuntime } from "./persistence";
 import {
@@ -28,9 +33,10 @@ const deliveryMappings = readRuntimeDeliveryMappings(
   process.env.TIP_COMMAND_CENTER_PROJECT_MAPPINGS,
 );
 const persistence = createApiPersistenceRuntime(config, deliveryMappings);
+const runtimeCatalog = await loadRuntimeCatalog(process.env.TIP_RUNTIME_CATALOG);
 const runtime = new MissionRuntime(
   persistence.missionRepository,
-  await loadRuntimeCatalog(process.env.TIP_RUNTIME_CATALOG),
+  runtimeCatalog,
   undefined,
   persistence.runtimeArtifacts,
 );
@@ -84,6 +90,37 @@ const workerApi = createRuntimeWorkerApi(
   persistence.runtimeArtifacts,
   readWorkerCredentials(process.env.TIP_WORKER_CREDENTIAL_DIGESTS),
 );
+const wakeEnabled = process.env.TIP_RUNTIME_WAKE_ENABLED;
+if (wakeEnabled && !["true", "false"].includes(wakeEnabled)) throw new Error("Invalid runtime wake enable flag");
+const wakeBindings = readWakeBindings(process.env.TIP_RUNTIME_WAKE_BINDINGS);
+const wakeWorkers = readWorkerCredentials(process.env.TIP_WORKER_CREDENTIAL_DIGESTS);
+if (wakeEnabled === "true" && (!deliveryTransport || config.environment !== "development" || persistence.missionRepository.source !== "postgres" || !config.operatorAuth.secret || !wakeBindings.length || wakeBindings.some(b => !runtimeCatalog.agents.some(a => a.agent_id === b.agent_id && a.lifecycle_state === "active") || !wakeWorkers.some(c => c.agent_id === b.agent_id)))) throw new Error("Wake activation requires durable development, existing authorized ledger mapping, active registry agents and dedicated worker/endpoint credentials");
+const wakeSenders = wakeEnabled === "true" ? new Map(wakeBindings.map(b => [b.agent_id, createHttpsWakeSender(b)])) : new Map();
+const recordWake = deliveryTransport ? createWakeLedgerRecorder(deliveryTransport, deliveryMappings) : null;
+let wakeTick: Promise<unknown> | null = null;
+const wakeTimer = wakeEnabled === "true" ? setInterval(() => {
+  if (wakeTick || deliveryStopping) return;
+  wakeTick = (async () => {
+    // Bounded catch-up scan. CAS prevents duplicate dispatch across concurrent scheduler replicas.
+    const records = (await runtime.repository.list()).filter(r => {
+      const target = runtime.wakeTarget(r);
+      if (!target) return false;
+      const wake = r.wake?.assignment_key === target.assignment_key ? r.wake : null;
+      return !wake || (wake.status !== "DEAD_LETTER" && Date.parse(wake.due_at) <= Date.now());
+    }).slice(0, 100);
+    for (let i = 0; i < records.length; i += 4) await Promise.all(records.slice(i, i + 4).map(async r => {
+      const mapping = deliveryMappings.find(m => m.tip_project_id === r.mission.project_id);
+      if (!mapping) return; // Scope is never broadened by discovery.
+      const sender = wakeSenders.get(r.delegation.assigned_agent_id!);
+      await dispatchRuntimeWake(runtime, r.mission.mission_id, {
+        recipient: wakeBindings.find(b => b.agent_id === r.delegation.assigned_agent_id)?.comms_recipient ?? "",
+        record: recordWake!,
+        wake: sender ?? (async () => { throw new RuntimeError(503, "Agent endpoint unavailable"); }),
+      }, mapping);
+    }));
+  })().catch(() => console.error("Runtime wake scan unavailable; durable attempts retained for recovery")).finally(() => { wakeTick = null; });
+}, 5000) : null;
+wakeTimer?.unref();
 const registryLoad = await persistence.loadRegistry();
 
 if (registryLoad.error) {
@@ -267,6 +304,8 @@ const server = createServer(async (request, response) => {
 
 async function shutdown() {
   deliveryStopping = true;
+  if (wakeTimer) clearInterval(wakeTimer);
+  if (wakeTick) await wakeTick;
   if (deliveryTimer) clearInterval(deliveryTimer);
   if (deliveryTick) await deliveryTick;
   await persistence.dispose();
@@ -285,3 +324,4 @@ server.listen(config.port, config.host, () => {
     console.log(`- ${note}`);
   }
 });
+

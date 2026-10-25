@@ -34,6 +34,8 @@ export function readWorkerCredentials(value?: string): WorkerCredential[] {
 function redact(r: MissionRecord, reveal = false) {
   const copy = structuredClone(r);
   copy.receipts = {};
+  if (copy.wake) copy.wake.lease_token = null;
+  for (const wake of copy.wake_history ?? []) wake.lease_token = null;
   if (copy.lease && !reveal) copy.lease.token = "REDACTED";
   return copy;
 }
@@ -152,3 +154,4 @@ export function createRuntimeWorkerApi(
     }
   };
 }
+

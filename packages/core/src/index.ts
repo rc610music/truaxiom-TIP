@@ -37,3 +37,6 @@ export * from "./commandCenterRuntimeBridge";
 export * from "./runtimeDeliveryRepository";
 export * from "./runtimePacket";
 export * from "./runtimeDeliveryWorker";
+
+export * from "./runtimeWakeDispatcher";
+export * from "./runtimeWakeTransport";
