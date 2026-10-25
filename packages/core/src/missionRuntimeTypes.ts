@@ -132,6 +132,8 @@ export type RuntimeCommand = {
   expected_revision: number;
   lease_token?: string;
 } & (
+  | { type: "acknowledge_wake"; wake_id: string }
+  | { type: "retry_wake"; note: string }
   | { type: "claim"; attempt_id: string; ttl_seconds: number }
   | { type: "heartbeat"; ttl_seconds: number }
   | {
@@ -165,6 +167,10 @@ export interface RuntimePrincipal {
   role: "operator" | "agent";
 }
 export interface MissionRecord {
+  /** Durable delivery metadata, never an execution/completion assertion. */
+  wake?: RuntimeWake;
+  wake_history?: RuntimeWake[];
+  wake_generation?: number;
   routingDecision?: RoutingDecision;
   mission: MissionInput;
   delegation: DelegationEnvelope;
@@ -179,6 +185,23 @@ export interface MissionRecord {
   completionResult: string | null;
   lease?: ExecutionLease;
   receipts: Record<string, { input: string; revision: number }>;
+}
+
+export interface RuntimeWake {
+  wake_id: string;
+  recipient: string;
+  comms_recipient: string;
+  assignment_key: string;
+  status: "DISPATCHING" | "SENT" | "RETRY_PENDING" | "ACKNOWLEDGED" | "DEAD_LETTER";
+  attempts: number;
+  lease_token: string | null;
+  due_at: string;
+  recorded_at: string | null;
+  sent_at: string | null;
+  acknowledged_at: string | null;
+  acknowledged_by: string | null;
+  error_code: string | null;
+  history: Array<{ at: string; event: string; attempt: number }>;
 }
 
 export interface HandoffPacket {
@@ -217,3 +240,4 @@ export interface RuntimeOperations {
   independent_verification: "NOT_RECORDED";
   next_action: string;
 }
+
