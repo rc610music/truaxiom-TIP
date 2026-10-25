@@ -1,0 +1,71 @@
+{
+  "status": "LIVE_EXECUTED",
+  "condition": "controlled-test-condition",
+  "mission_id": "MISSION-DEV-HEARTBEAT-20261025",
+  "repository": "rc610music/truaxiom-TIP",
+  "ref": "e896e080de021435cd4122662a66f40c0eb650c9",
+  "commit_sha": "e896e080de021435cd4122662a66f40c0eb650c9",
+  "commit_message": "TIP safety stack: Postgres blueprint, operator gate, content upsert (#7)\n\nSafety stack B–F: Postgres blueprint, operator review gate, RootWork content workflow, durable content upsert, seed vs durable labels. No persistent agent, no live mo",
+  "path_count": 137,
+  "includes_readme": true,
+  "check_run_count": 12,
+  "sample_paths": [
+    ".env.example",
+    ".github/workflows/api-smoke.yml",
+    ".github/workflows/ci.yml",
+    ".github/workflows/mission-control-pages.yml",
+    ".gitignore",
+    "README.md",
+    "apps/api/README.md",
+    "apps/api/package.json",
+    "apps/api/src/persistence.ts",
+    "apps/api/src/server.ts",
+    "apps/api/tsconfig.json",
+    "apps/mission-control/index.html",
+    "apps/mission-control/package.json",
+    "apps/mission-control/src/App.tsx",
+    "apps/mission-control/src/apiClient.ts"
+  ],
+  "worker": "AGENT-REPOSITORY-INSPECTOR",
+  "capability": "repository.inspect",
+  "revision": 7,
+  "evidence_sha256": "e66e79c3611d5dbba5ca9e076af9ad24774652b83625aec389d14ef89cc1e885",
+  "packet_sha256": "234772c75feb14e99706973244c7b1ac89c1e5d04a9eb6d6ee48408d80d9488e",
+  "ledger_task_id": "TIP-5693763e22a52f66a663af2dba71daebe586797097e5875cb610bd7ffa9e941c",
+  "delivered_revisions": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "ledger_messages": 14,
+  "ledger_evidence": 1,
+  "github_gets": [
+    {
+      "method": "GET",
+      "host": "api.github.com",
+      "path": "/repos/rc610music/truaxiom-TIP/commits/e896e080de021435cd4122662a66f40c0eb650c9"
+    },
+    {
+      "method": "GET",
+      "host": "api.github.com",
+      "path": "/repos/rc610music/truaxiom-TIP/git/trees/e896e080de021435cd4122662a66f40c0eb650c9"
+    },
+    {
+      "method": "GET",
+      "host": "api.github.com",
+      "path": "/repos/rc610music/truaxiom-TIP/commits/e896e080de021435cd4122662a66f40c0eb650c9/check-runs"
+    }
+  ],
+  "duplicate_execution": false,
+  "duplicate_delivery": false,
+  "recheck": "PASSED",
+  "restarted_before_recheck": true,
+  "production_mutation": false,
+  "command_center_candidate_contacted": false,
+  "started_at": "2026-10-25T21:14:05.901Z",
+  "finished_at": "2026-10-25T21:14:08.958Z"
+}

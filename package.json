@@ -39,7 +39,9 @@
     "test:runtime-002": "node --import tsx --test scripts/test-mission-runtime.mjs",
     "test:runtime-003": "node --import tsx --test scripts/test-runtime-worker.mjs scripts/test-command-center-runtime.mjs scripts/test-runtime-inspection.mjs",
     "test:runtime-delivery": "node --import tsx --test scripts/test-runtime-delivery.mjs",
-    "test:runtime-wake": "node --import tsx --test scripts/test-runtime-wake.mjs"
+    "test:runtime-wake": "node --import tsx --test scripts/test-runtime-wake.mjs",
+    "test:runtime-heartbeat": "node --import tsx --test scripts/test-runtime-heartbeat.mjs",
+    "prove:runtime-heartbeat": "node --import tsx scripts/prove-worker-delivery-heartbeat.mjs"
   },
   "engines": {
     "node": ">=20.0.0"

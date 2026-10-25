@@ -40,3 +40,4 @@ export * from "./runtimeDeliveryWorker";
 
 export * from "./runtimeWakeDispatcher";
 export * from "./runtimeWakeTransport";
+export * from "./runtimeHeartbeatLoop";
