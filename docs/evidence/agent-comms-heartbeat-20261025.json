@@ -1,0 +1,72 @@
+{
+  "status": "LIVE_EXECUTED",
+  "condition": "controlled-test-condition",
+  "mission_id": "MISSION-DEV-HEARTBEAT-20261025",
+  "repository": "rc610music/truaxiom-TIP",
+  "ref": "e896e080de021435cd4122662a66f40c0eb650c9",
+  "commit_sha": "e896e080de021435cd4122662a66f40c0eb650c9",
+  "commit_message": "TIP safety stack: Postgres blueprint, operator gate, content upsert (#7)\n\nSafety stack B–F: Postgres blueprint, operator review gate, RootWork content workflow, durable content upsert, seed vs durable labels. No persistent agent, no live mo",
+  "path_count": 137,
+  "includes_readme": true,
+  "worker": "AGENT-REPOSITORY-INSPECTOR",
+  "revision": 7,
+  "evidence_sha256": "513f3ff9d4230e8b69caf2afd69248ed944a490915d328d2af7d21a950722fa5",
+  "packet_sha256": "28e10188a6f563371ab69c634608b92e2e55b8fe3f1d7379d58e683422baf3d4",
+  "reread_packet_sha256": "28e10188a6f563371ab69c634608b92e2e55b8fe3f1d7379d58e683422baf3d4",
+  "packet_hash_match": true,
+  "evidence_hash_match": true,
+  "ledger_task_id": "TIP-5693763e22a52f66a663af2dba71daebe586797097e5875cb610bd7ffa9e941c",
+  "task_created_by": "TIP",
+  "task_env": "development",
+  "task_requires_dot": true,
+  "commit_message_id": "TIP-C-a2a0e71647058f42baecd99f1a41e27d63a57ed384f978fa14e8fb8a4646db82",
+  "acknowledgment_actor": "GROKBOT_COS",
+  "delivery_acknowledged": true,
+  "delivery_sender": "TIP",
+  "ledger_storage": "neon-postgres",
+  "ledger_verification_id": "VER-HEARTBEAT-20261025",
+  "ledger_verifier": "SUPERGROK",
+  "ledger_verification_level": "OBSERVED",
+  "tip_verification_id": "e3940b32346d6d8c8f74a8b33f696f7d4e512a9ffd5a9866e90db6ea21a4de00",
+  "tip_verification_result": "MATCH",
+  "lifecycle": {
+    "mission_id": "MISSION-DEV-HEARTBEAT-20261025",
+    "execution_status": "COMPLETED",
+    "independent_verification": "RECORDED",
+    "result": "MATCH",
+    "dot_approval": "NOT_RECORDED",
+    "finding_resolution": "NOT_RECORDED",
+    "dispatch_enabled": false
+  },
+  "packet_independent_verification": "NOT_RECORDED",
+  "command_center_ref": "refs/heads/cursor/cc-restore-s07-s10-s11-crm-a748",
+  "command_center_dispatcher_sha256": "21761df8d42a85461bbec2f7c1706a82d93fc06cc16dfc411cb978896f8fe7ae",
+  "restarted_before_reread": true,
+  "restarted_before_verification_reread": true,
+  "tip_database_reopened": true,
+  "duplicate_execution": false,
+  "github_gets": [
+    {
+      "method": "GET",
+      "host": "api.github.com",
+      "path": "/repos/rc610music/truaxiom-TIP/commits/e896e080de021435cd4122662a66f40c0eb650c9"
+    },
+    {
+      "method": "GET",
+      "host": "api.github.com",
+      "path": "/repos/rc610music/truaxiom-TIP/git/trees/e896e080de021435cd4122662a66f40c0eb650c9"
+    },
+    {
+      "method": "GET",
+      "host": "api.github.com",
+      "path": "/repos/rc610music/truaxiom-TIP/commits/e896e080de021435cd4122662a66f40c0eb650c9/check-runs"
+    }
+  ],
+  "candidate_host_contacted": false,
+  "pie_dispatch_enabled": false,
+  "dot_approval": "NOT_RECORDED",
+  "finding_resolution": "NOT_RECORDED",
+  "wake_scheduler_enabled": false,
+  "started_at": "2026-10-25T21:48:58.671Z",
+  "finished_at": "2026-10-25T21:49:02.296Z"
+}

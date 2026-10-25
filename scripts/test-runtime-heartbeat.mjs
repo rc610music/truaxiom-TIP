@@ -143,6 +143,31 @@ test("valid dispatch resolves the inspector, executes once, and delivers the ter
   assert.equal(check.evidence_sha256, result.evidence_sha256);
   assert.deepEqual(check.write_permissions, []);
   assert.deepEqual(check.delivery_environments, ["development"]);
+  for (const message of ctx.transport.view.messages) delete message.authority_type;
+  const durable = await recheckGovernedHeartbeat({
+    runtime: ctx.runtime,
+    artifacts: ctx.artifacts,
+    deliveries: ctx.deliveries,
+    ledger: ctx.transport.view,
+    missionId: "M-VALID",
+    expect: "COMPLETED",
+    operatorActor: operator.actor,
+  });
+  assert.equal(durable.result, "PASSED");
+  ctx.transport.view.messages[0].authority_type = "OTHER";
+  await assert.rejects(
+    () =>
+      recheckGovernedHeartbeat({
+        runtime: ctx.runtime,
+        artifacts: ctx.artifacts,
+        deliveries: ctx.deliveries,
+        ledger: ctx.transport.view,
+        missionId: "M-VALID",
+        expect: "COMPLETED",
+        operatorActor: operator.actor,
+      }),
+    (error) => error instanceof RuntimeError && error.status === 409,
+  );
 });
 
 test("unauthorized dispatch is rejected before worker execution", async () => {

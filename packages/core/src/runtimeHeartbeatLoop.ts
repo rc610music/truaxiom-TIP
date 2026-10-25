@@ -378,12 +378,15 @@ export async function recheckGovernedHeartbeat(input: {
     "Ledger task is not a development Dot-gated record",
   );
   const messages = input.ledger.messages.filter((item) => item.task_id === taskId);
+  // Agent Comms stores authority_type on the task. Message rows persist
+  // requires_dot and env. A present message authority must still be DOT_APPROVAL.
   demand(
     messages.every(
       (item) =>
         item.requires_dot === true &&
         item.env === "development" &&
-        item.authority_type === "DOT_APPROVAL",
+        (item.authority_type === undefined ||
+          item.authority_type === "DOT_APPROVAL"),
     ),
     "Ledger message lost its development Dot gate",
   );
