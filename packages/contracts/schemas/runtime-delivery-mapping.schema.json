@@ -20,6 +20,10 @@
       "type": "string",
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,80}$"
     },
-    "environment": { "enum": ["development", "preview"] }
+    "environment": { "enum": ["development", "preview"] },
+    "comms_recipient": {
+      "type": "string",
+      "pattern": "^(?:CHATGPT_WORK|CHATGPT|GEMINI|SUPERGROK|GROKBOT_[A-Z0-9]+)$"
+    }
   }
 }
