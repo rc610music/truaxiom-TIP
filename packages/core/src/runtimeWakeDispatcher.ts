@@ -42,6 +42,8 @@ export function createWakeLedgerRecorder(transport: CommandCenterTransport, mapp
   return async (envelope: WakeEnvelope, record: MissionRecord) => {
     const mapping = mappings.find(m => m.tip_project_id === record.mission.project_id);
     if (!mapping) throw new RuntimeError(403, "No authorized wake project mapping");
+    const preflight = await transport.project(mapping.command_center_project_id) as Awaited<ReturnType<CommandCenterTransport["project"]>> & { viewer?: { agent?: string; permissions?: string[] } };
+    if (preflight.project.id !== mapping.command_center_project_id || preflight.viewer?.agent !== "TIP" || !["read", "post_status", "post_evidence", "post_message"].every(p => preflight.viewer?.permissions?.includes(p))) throw new RuntimeError(403, "Dedicated TIP ledger identity and scoped delivery grants required");
     const result = await synchronizeRuntimePacket(recordToPacket(record), {
       tipProjectId: mapping.tip_project_id,
       commandCenterProjectId: mapping.command_center_project_id,

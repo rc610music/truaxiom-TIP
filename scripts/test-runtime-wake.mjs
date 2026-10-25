@@ -126,7 +126,7 @@ test('unbound agent creates a durable blocker and never records a fabricated rec
   assert.equal(s.recorded.length,0);assert.equal(s.sent.length,0);
 });
 test('existing ledger recorder creates task/packet and addressed message; replay recovers a lost response',async()=>{
-  const s=await setup();const view={project:{id:mapping.command_center_project_id,checkpoint_version:1},tasks:[],evidence:[],messages:[]};let lose=true;
+  const s=await setup();const view={viewer:{agent:'TIP',permissions:['read','post_status','post_evidence','post_message']},project:{id:mapping.command_center_project_id,checkpoint_version:1},tasks:[],evidence:[],messages:[]};let lose=true;
   const cc={project:async()=>structuredClone(view),write:async(path,body)=>{
     view.project.checkpoint_version++;
     if(path==='/tasks')view.tasks.push({id:body.id});
@@ -141,6 +141,12 @@ test('existing ledger recorder creates task/packet and addressed message; replay
   assert.equal(view.tasks[0].id,wakeTaskId(await s.runtime.get(s.id),mapping));
   assert.equal(view.messages.filter(m=>m.body.startsWith('TIP_WAKE ')).length,1);
   assert.equal(s.sent.length,1);
+});
+test('ledger preflight refuses a different actor before writing any packet or assignment',async()=>{
+  const s=await setup();let writes=0;
+  const cc={project:async()=>({viewer:{agent:'CHATGPT_WORK',permissions:['read','post_message']},project:{id:mapping.command_center_project_id,checkpoint_version:1},tasks:[],evidence:[],messages:[]}),write:async()=>{writes++}};
+  assert.equal((await s.dispatch({record:createWakeLedgerRecorder(cc,[mapping]),wake:s.transport.wake})).status,'DEAD_LETTER');
+  assert.equal(writes,0);assert.equal(s.sent.length,0);
 });
 test('PostgreSQL-backed wake survives reopen and resumes after an abandoned dispatcher lease',async()=>{
   const dir=await mkdtemp(join(tmpdir(),'tip-wake-'));let db;

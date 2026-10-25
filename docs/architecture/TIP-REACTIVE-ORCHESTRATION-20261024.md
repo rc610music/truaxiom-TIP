@@ -69,6 +69,9 @@ of database LISTEN/NOTIFY or an always-running free host. It wakes selected boun
 recipients only; arbitrary ledger notes never become executable tasks.
 
 The exact addressed assignment is recorded on Agent Comms before the endpoint call.
+A preflight requires the actual ledger viewer to be TIP with read/post_status/
+post_evidence/post_message grants before any packet/task write; a CHATGPT_WORK
+credential cannot claim to be the TIP sender.
 `createWakeLedgerRecorder` reuses the existing packet/task bridge. It checks the
 project mapping, exact task/message identity, correlation and recipient on replay.
 A lost committed response is recovered by reading the existing message. A changed
@@ -178,8 +181,8 @@ These are documented bounds, **not an implemented discussion engine**.
 
 ## Validation and acceptance ledger
 
-Local validation: 94/94 tests passed across mission lifecycle, worker, delivery,
-inspection, CC bridge and new wake suite (13 new cases). Core/API typechecks pass;
+Local validation: 95/95 tests passed across mission lifecycle, worker, delivery,
+inspection, CC bridge and new wake suite (14 new cases). Core/API typechecks pass;
 Taxis Runtime 001 and foundation contract checks pass. CI additionally executes the
 wake suite. Database restart checks use disposable disk-backed PGlite/PostgreSQL
 engine, not the hosted production database. Stub recipient calls and fake credentials
@@ -206,7 +209,7 @@ deduplication and disk reopen/abandoned-lease recovery.
 | 11. Discussion protocol | Documented target bounds; not implemented |
 | 12. PIE closed loop | Existing PIE proposals remain disabled; no automatic proposal-to-runtime or fresh-resolution integration |
 | 13. Command Center UX | Runtime executive read model added; CC frontend integration pending |
-| 14. Automated tests | 13 new tests plus 81 existing runtime regressions |
+| 14. Automated tests | 14 new tests plus 81 existing runtime regressions |
 | 15. Real multi-agent acceptance | NOT RUN: two supported live execution endpoints/credentials unavailable |
 | 16. Failure/recovery evidence | CONTROLLED ONLY: unavailable/ack timeout/backoff/retry limit/dead-letter/reopen |
 | 17. Deployment verification | NOT DEPLOYED: no safe configured runtime host/bindings; current CC deployment merely observed |
@@ -224,3 +227,25 @@ ledger mapping on the existing development runtime. Then run the user's complete
 15-step no-human-relay mission and controlled failure on that host, retaining every
 timestamp, message/ack/lease/evidence/review/fresh-observation ID. Native OAuth chat
 connections alone cannot satisfy that gate.
+
+## Concurrent coordination update
+
+SUPERGROK native message MSG-8d2a70ca-dec4-48a5-91e8-a0d32af3b7b3 at
+2026-10-25T03:43:15.619Z independently reports pull-only behavior and says its
+prior round trip required Dot to open the chat. Its proposed Automations webhook
+capability remains an attributed claim until the actual trigger/auth schema and
+receiver are inspected. CHATGPT_WORK explicitly acknowledged this message in
+ACK-be07e26a-49d3-4d0e-b9e5-e7a3a660991b at03:54:38.144Z.
+
+Bounded receiver capability assignment MSG-2b80489e-4c05-4aa3-b665-4146e3024b7a
+was recorded to SUPERGROK at03:54:54.513Z, checkpoint40. It requires verification
+of an existing free event trigger, bearer/idempotency support, real session wake
+and its own scoped acknowledgment. It forbids secret URLs/keys in the ledger,
+new accounts/spend, unapproved authority and duplicate source edits. It is not
+an automatic delivery result. Reviewed concurrent CC progress before writing;
+checkpoint conflicts were not blindly retried. Updated CoS coordination record
+MSG-088bd887-de42-4d08-aa9c-6320d541831b is checkpoint41.
+
+PR13 initial implementation head88a8a82c passed GitHub TIP CI40159901368 and
+API Smoke40159901529. The follow-up dedicated-TIP-identity guard is independently
+controlled-tested before commit; see PR conversation for its exact-head CI results.
