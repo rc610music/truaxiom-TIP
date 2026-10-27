@@ -2,13 +2,13 @@ import { createHash } from "node:crypto";
 import { deliverNextRuntimePacket } from "./runtimeDeliveryWorker";
 import { runRepositoryInspection, type GitHubReader } from "./repositoryInspector";
 import type { MissionRuntime } from "./missionRuntime";
-import type { ArtifactRepository } from "./runtimeArtifactRepository";
+import { artifactHash, type ArtifactRepository } from "./runtimeArtifactRepository";
 import type {
   RuntimeDelivery,
   RuntimeDeliveryMapping,
   RuntimeDeliveryRepository,
 } from "./runtimeDeliveryRepository";
-import type { CommandCenterProjection, CommandCenterTransport } from "./commandCenterRuntimeBridge";
+import { verifiedCommittedPacket, type CommandCenterProjection, type CommandCenterTransport } from "./commandCenterRuntimeBridge";
 import { canonicalJson, RuntimeError, validateRuntimeContract } from "./runtimeContracts";
 import type {
   MissionInput,
@@ -29,7 +29,6 @@ export const CONTROLLED_HEARTBEAT_REF =
 export const CONTROLLED_HEARTBEAT_AGENT = "AGENT-REPOSITORY-INSPECTOR";
 export const CONTROLLED_HEARTBEAT_CAPABILITY = "repository.inspect";
 const DELIVERY_PATHS = ["/tasks", "/evidence", "/messages"] as const;
-const markerPrefix = "TIP_RUNTIME_COMMIT ";
 
 export const CONTROLLED_HEARTBEAT_CONDITION = {
   source: "controlled-test-condition",
@@ -289,28 +288,6 @@ export async function runGovernedHeartbeat(input: {
   return snapshot(record, executed, await input.deliveries.list());
 }
 
-function marker(body: string) {
-  if (!body.startsWith(markerPrefix)) return null;
-  const parsed: unknown = JSON.parse(body.slice(markerPrefix.length));
-  if (!parsed || typeof parsed !== "object") return null;
-  const marker = parsed as {
-    revision?: unknown;
-    sha256?: unknown;
-    state?: unknown;
-  };
-  if (
-    typeof marker.revision !== "number" ||
-    typeof marker.sha256 !== "string" ||
-    typeof marker.state !== "string"
-  )
-    return null;
-  return {
-    revision: marker.revision,
-    sha256: marker.sha256,
-    state: marker.state,
-  };
-}
-
 function demand(ok: unknown, message: string): asserts ok {
   if (!ok) throw new RuntimeError(409, message);
 }
@@ -392,12 +369,18 @@ export async function recheckGovernedHeartbeat(input: {
   );
   for (const row of rows) {
     const hash = digest(canonicalJson(row.packet));
-    const committed = messages
-      .map((item) => marker(item.body))
-      .find((item) => item?.revision === row.mission_revision);
+    const message = messages.find(
+      (item) => item.id === `TIP-C-${digest(`${identity}:${row.mission_revision}`)}`,
+    );
     demand(
-      committed?.sha256 === hash && committed.state === row.packet.state,
-      "Ledger commit marker does not match the stored delivery packet",
+      message && message.body.startsWith("TIP_RUNTIME_COMMIT "),
+      "Ledger commit marker unavailable",
+    );
+    const committed = verifiedCommittedPacket(message, input.ledger, taskId, identity);
+    demand(
+      digest(canonicalJson(committed)) === hash &&
+        canonicalJson(committed) === canonicalJson(row.packet),
+      "Recovered ledger packet does not match the stored delivery packet",
     );
   }
   const report = record.evidence.find((item) => item.kind === "repository-report");
@@ -430,6 +413,10 @@ export async function recheckGovernedHeartbeat(input: {
         (!pinned || !/^[a-f0-9]{40}$/.test(pinned) || stored.content.commit_sha === pinned) &&
         Array.isArray(stored.content.paths),
       "Stored report does not match the pinned repository observation",
+    );
+    demand(
+      artifactHash(stored) === report.sha256,
+      "Stored report hash no longer matches the attached evidence",
     );
     demand(record.completionResult, "Completion result was not persisted");
   } else {

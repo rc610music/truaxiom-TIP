@@ -507,3 +507,41 @@ test("delivery authentication failure pauses once and resumes only after operato
     operatorActor: operator.actor,
   });
 });
+
+for (const corruption of ["missing part", "missing evidence", "altered part", "altered report"]) {
+  test(`fresh recheck rejects ${corruption} after successful delivery`, async () => {
+    const ctx = await setup();
+    const result = await run(ctx, "M-CORRUPTION");
+    const parts = ctx.transport.view.messages.filter((item) =>
+      item.body.startsWith("TIP_RUNTIME_PART "),
+    );
+    assert.ok(parts.length > 0);
+    assert.ok(ctx.transport.view.evidence.length > 0);
+    let artifacts = ctx.artifacts;
+    if (corruption === "missing part") {
+      ctx.transport.view.messages = ctx.transport.view.messages.filter(
+        (item) => item.id !== parts[0].id,
+      );
+    } else if (corruption === "missing evidence") {
+      ctx.transport.view.evidence = [];
+    } else if (corruption === "altered part") {
+      parts[0].body += " ";
+    } else {
+      const stored = await ctx.artifacts.get(result.evidence_sha256);
+      stored.content.paths.push("corrupted.ts");
+      artifacts = { ...ctx.artifacts, get: async () => stored };
+    }
+    await assert.rejects(
+      () => recheckGovernedHeartbeat({
+        runtime: ctx.runtime,
+        artifacts,
+        deliveries: ctx.deliveries,
+        ledger: ctx.transport.view,
+        missionId: "M-CORRUPTION",
+        expect: "COMPLETED",
+        operatorActor: operator.actor,
+      }),
+      (error) => error instanceof RuntimeError && error.status === 409,
+    );
+  });
+}

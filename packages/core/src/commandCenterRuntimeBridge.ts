@@ -23,7 +23,7 @@ export interface CommandCenterTransport {
 const digest = (s: string) => createHash("sha256").update(s).digest("hex");
 const markerPrefix = "TIP_RUNTIME_COMMIT ";
 /** A commit marker is a claim until its exact, schema-valid packet is recovered. */
-function verifiedCommittedPacket(
+export function verifiedCommittedPacket(
   message: CommandCenterProjection["messages"][number],
   view: CommandCenterProjection,
   task: string,
