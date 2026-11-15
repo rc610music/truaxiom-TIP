@@ -154,6 +154,7 @@ export class MissionRuntime {
     });
     const agent = agents.find((a) => a.agent_id === decision.assignedAgentId);
     const gated =
+      m.capability_id === "non_prod_health_remediation" ||
       decision.status === "needs_approval" ||
       privileged.test([m.capability_id, ...permissions].join(" ")) ||
       permissions.some(
@@ -493,6 +494,8 @@ export class MissionRuntime {
       this.event(r, d.status, principal.actor, "Worker lease heartbeat");
     } else if (c.type === "approve" || c.type === "reject") {
       operator();
+      if (c.type === "approve" && r.mission.capability_id === "non_prod_health_remediation")
+        demand(principal.actor === "DOT", "Explicit Dot approval required for health remediation", 403);
       demand(d.status === "NEEDS_APPROVAL", "No approval pending");
       const p = this.policy(r.mission, d.assigned_agent_id ?? "");
       demand(

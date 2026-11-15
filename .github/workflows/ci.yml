@@ -10,6 +10,7 @@ on:
       - codex/tip-runtime-001
       - codex/runtime-002-integration-20261018
       - codex/taxis-reactive-wake-20261024
+      - codex/heartbeat-evidence-recheck-20261027
 
 jobs:
   validate:
@@ -55,3 +56,6 @@ jobs:
       - name: Validate independent verification beside the completed heartbeat
         run: npm run test:independent-verification
 
+
+      - name: Validate PIE finding to governed runtime proposal bridge
+        run: npm run test:pie-runtime-bridge
