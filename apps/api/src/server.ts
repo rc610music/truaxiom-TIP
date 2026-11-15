@@ -45,6 +45,7 @@ const runtimeApi = createMissionRuntimeApi(
   config.operatorAuth,
   persistence.runtimeArtifacts,
   persistence.runtimeDeliveries,
+  persistence.pieFindingVerifications,
 );
 const deliveryEnabled = process.env.TIP_RUNTIME_DELIVERY_ENABLED;
 if (deliveryEnabled && !["true", "false"].includes(deliveryEnabled))

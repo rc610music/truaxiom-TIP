@@ -1,0 +1,217 @@
+{
+  "scope": "Disposable local integration; accelerated clock, simulated DOT approval, in-process ledger transport",
+  "recorded_at": "2026-11-15T08:33:09.955Z",
+  "simulated_dot_approval": true,
+  "wall_clock_soak": false,
+  "result": {
+    "schema_version": "1.0",
+    "mission_id": "PIE-5fe0e4adc98bcf92947cd1b624125d9faf55041506ba80715691bf32e289bb56",
+    "finding_id": "health:sha256:4f6c97eb6b18a4f9c1bd5465286dd546c218fcfcde79fde666159b371d949ce5",
+    "project_id": "PRJ-TIP",
+    "environment": "development",
+    "finding_state": "VERIFIED_RESOLVED",
+    "observer_actor": "PIE-OBSERVER",
+    "executing_agent_id": "FIXTURE",
+    "completion_actor": "DOT",
+    "completed_at": "2026-11-15T12:32:00.000Z",
+    "observed_at": "2026-11-15T12:33:00.000Z",
+    "packet_sha256": "8a35fc3237cb5a8c0efae971d36e56ccaa8b7ac265a8f9b6004aa1ac4b756477",
+    "evidence_sha256": "0f80ae9c742ca464934d5170cf8764bc4a937f190d39fa96fb586934fcfceaa0",
+    "observation_sha256": "44310328ea2ed4d74b9261c31e6a823952f4d28d2a8e9accf1a1699024fb2dad",
+    "binding_sha256": "714fe37b0efaefbe7e97e0b40e8aa576468fee647a336ac2a7e2e2c69ed2d212",
+    "health_evidence_ref": "sha256:b337642ae6bde960060cad68682c4ba683d789a67493242a34d918208c5b869f",
+    "verification_id": "c9d2cf1ba2fcc334ce7f2c001d339509e30a42b4707b4f807e1018ca4ed73ebd"
+  },
+  "executor_packet": {
+    "assigned_agent_id": "FIXTURE",
+    "blockers": [],
+    "completion_result": "Operation attempted; target health is not verified by the executor.",
+    "delegation_id": "D:PIE-5fe0e4adc98bcf92947cd1b624125d9faf55041506ba80715691bf32e289bb56",
+    "evidence": [
+      {
+        "artifact_id": "RECOVERY:1",
+        "attached_by": "FIXTURE",
+        "created_at": "2026-11-15T12:31:00.000Z",
+        "delegation_id": "D:PIE-5fe0e4adc98bcf92947cd1b624125d9faf55041506ba80715691bf32e289bb56",
+        "kind": "recovery-report",
+        "mission_id": "PIE-5fe0e4adc98bcf92947cd1b624125d9faf55041506ba80715691bf32e289bb56",
+        "schema_version": "1.0",
+        "sha256": "0f80ae9c742ca464934d5170cf8764bc4a937f190d39fa96fb586934fcfceaa0",
+        "summary": "Bound reversible operation attempted; independent PIE health verification pending",
+        "uri": "urn:tip:artifact:0f80ae9c742ca464934d5170cf8764bc4a937f190d39fa96fb586934fcfceaa0",
+        "verification_level": "HASH_VERIFIED"
+      }
+    ],
+    "failures": [],
+    "handoffs": [],
+    "mission_id": "PIE-5fe0e4adc98bcf92947cd1b624125d9faf55041506ba80715691bf32e289bb56",
+    "operations": {
+      "approval_status": "OPERATOR_APPROVED",
+      "independent_verification": "NOT_RECORDED",
+      "latest_event": {
+        "actor": "DOT",
+        "created_at": "2026-11-15T12:32:00.000Z",
+        "delegation_id": "D:PIE-5fe0e4adc98bcf92947cd1b624125d9faf55041506ba80715691bf32e289bb56",
+        "event_id": "D:PIE-5fe0e4adc98bcf92947cd1b624125d9faf55041506ba80715691bf32e289bb56:E7",
+        "from_state": "REVIEW",
+        "mission_id": "PIE-5fe0e4adc98bcf92947cd1b624125d9faf55041506ba80715691bf32e289bb56",
+        "reason": "Technical review only",
+        "schema_version": "1.0",
+        "sequence": 7,
+        "to_state": "COMPLETED"
+      },
+      "next_action": "Independently verify the result; Dot approval remains separate.",
+      "required_capabilities": [
+        "non_prod_health_remediation"
+      ],
+      "required_permissions": [
+        "actions:fixture-recover"
+      ],
+      "routing": {
+        "candidates": [
+          {
+            "agent_id": "FIXTURE",
+            "capability_status": "DECLARED",
+            "eligible": true,
+            "reasons": []
+          }
+        ],
+        "fallback_candidates": [],
+        "selected_agent": "FIXTURE",
+        "selection_reason": "Deterministic capability, scope, output and permission match; agent ID breaks equal eligibility ties."
+      },
+      "title": "PIE proposed non-production health recovery",
+      "verification_status": "HASH_VERIFIED"
+    },
+    "project_id": "PRJ-TIP",
+    "review_required": false,
+    "revision": 7,
+    "schema_version": "1.0",
+    "source": "TIP",
+    "state": "COMPLETED",
+    "updated_at": "2026-11-15T12:32:00.000Z"
+  },
+  "execution_artifact": {
+    "kind": "recovery-report",
+    "content": {
+      "build": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "result": "ATTEMPTED",
+      "finding_id": "health:sha256:4f6c97eb6b18a4f9c1bd5465286dd546c218fcfcde79fde666159b371d949ce5",
+      "recorded_at": "2026-11-15T12:31:00.000Z",
+      "registration": "sha256:c281e4bd604de68425fa4abd167e31fe5dfc799559d58cf3ec7ff4a95599b59b",
+      "verification": "NOT_RECORDED",
+      "operation_key": "PIE-5fe0e4adc98bcf92947cd1b624125d9faf55041506ba80715691bf32e289bb56",
+      "binding_sha256": "714fe37b0efaefbe7e97e0b40e8aa576468fee647a336ac2a7e2e2c69ed2d212"
+    },
+    "mission_id": "PIE-5fe0e4adc98bcf92947cd1b624125d9faf55041506ba80715691bf32e289bb56",
+    "schema_version": "1.0"
+  },
+  "observation_artifact": {
+    "kind": "pie-health-observation",
+    "content": {
+      "project": {
+        "manifest": {
+          "tip": {
+            "registry": true,
+            "integrationPoints": []
+          },
+          "name": "Fixture",
+          "source": {
+            "ref": "main",
+            "path": "",
+            "provider": "github",
+            "repository": "rc610music/truaxiom-TIP",
+            "manifestPath": null
+          },
+          "domains": [],
+          "productId": "PROD-TIP",
+          "projectId": "PRJ-TIP",
+          "deployments": [
+            {
+              "id": "fixture",
+              "url": "https://fixture.example.com",
+              "surface": "candidate",
+              "buildPath": "/build",
+              "healthPath": "/health"
+            }
+          ],
+          "description": "Disposable test target",
+          "capabilities": [],
+          "dependencies": [],
+          "schemaVersion": "truaxiom-app-manifest-v1"
+        },
+        "intelligence": {
+          "name": "Fixture",
+          "facts": {
+            "health.fixture.ok": {
+              "value": true,
+              "source": "https://fixture.example.com/health",
+              "status": "verified",
+              "conflict": false,
+              "verifier": "pie-evidence-v1",
+              "confidence": "observed",
+              "observedAt": "2026-11-15T12:33:00.000Z",
+              "sourceType": "health",
+              "evidenceRef": "sha256:b337642ae6bde960060cad68682c4ba683d789a67493242a34d918208c5b869f"
+            },
+            "deployment.fixture.sha": {
+              "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "source": "https://fixture.example.com/build",
+              "status": "verified",
+              "conflict": false,
+              "verifier": "pie-evidence-v1",
+              "confidence": "observed",
+              "observedAt": "2026-11-15T12:33:00.000Z",
+              "sourceType": "deployment",
+              "evidenceRef": "sha256:6f5bbba6c0cdea28afff800d2959ea5c686d54b3a42ed4e89692bc980bceafbe"
+            },
+            "health.fixture.identity": {
+              "value": "PRJ-TIP",
+              "source": "https://fixture.example.com/health",
+              "status": "verified",
+              "conflict": false,
+              "verifier": "pie-evidence-v1",
+              "confidence": "observed",
+              "observedAt": "2026-11-15T12:33:00.000Z",
+              "sourceType": "health",
+              "evidenceRef": "sha256:4eb9fd23fad4ec2616fcd7879684f8ab0b5e907bb3612331f04cf173496cdeda"
+            }
+          },
+          "risks": [],
+          "features": [],
+          "checkedAt": "2026-11-15T12:33:00.000Z",
+          "conflicts": [],
+          "productId": "PROD-TIP",
+          "projectId": "PRJ-TIP",
+          "confidence": "observed",
+          "unavailable": [],
+          "changedFacts": [
+            "health.fixture.ok",
+            "healthFailureEpisode"
+          ],
+          "previousState": "sha256:99031fae700526a96302e2d21debfbc9ac3fa6dedfe56ab4227029f7497cd27a",
+          "healthFailureEpisode": {
+            "build": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "streak": null,
+            "binding": "sha256:c281e4bd604de68425fa4abd167e31fe5dfc799559d58cf3ec7ff4a95599b59b",
+            "finding": null,
+            "lastReadAt": "2026-11-15T12:33:00.000Z",
+            "environment": "development",
+            "deploymentId": "fixture"
+          },
+          "recommendedNextAction": "Review current source, deployment and feature evidence."
+        }
+      },
+      "observer_actor": "PIE-OBSERVER"
+    },
+    "mission_id": "PIE-5fe0e4adc98bcf92947cd1b624125d9faf55041506ba80715691bf32e289bb56",
+    "schema_version": "1.0"
+  },
+  "counts": {
+    "operations": 1,
+    "probes": 5
+  },
+  "executor_packet_unchanged": true,
+  "database_restarted": true,
+  "live_deployment": false
+}

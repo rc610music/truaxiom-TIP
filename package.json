@@ -44,7 +44,9 @@
     "test:independent-verification": "node --import tsx --test scripts/test-independent-verification.mjs",
     "prove:runtime-heartbeat": "node --import tsx scripts/prove-worker-delivery-heartbeat.mjs",
     "prove:agent-comms-heartbeat": "node --import tsx scripts/prove-agent-comms-heartbeat.mjs",
-    "test:pie-runtime-bridge": "node --import tsx --test scripts/test-pie-runtime-bridge.mjs"
+    "test:pie-runtime-bridge": "node --import tsx --test scripts/test-pie-runtime-bridge.mjs",
+    "test:pie-closed-loop": "node --import tsx --test scripts/test-pie-closed-loop.mjs",
+    "prove:pie-closed-loop": "node --import tsx --test --test-name-pattern=\"approved disposable\" scripts/test-pie-closed-loop.mjs"
   },
   "engines": {
     "node": ">=20.0.0"

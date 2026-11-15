@@ -1,5 +1,7 @@
 import { Pool } from "pg";
 import {
+  createPostgresPieFindingVerifications,
+  type PieFindingVerifications,
   createMemoryRuntimeDeliveries,
   createPostgresRuntimeDeliveries,
   type RuntimeDeliveryRepository,
@@ -40,6 +42,7 @@ export interface RegistryLoadResult {
 }
 
 export interface ApiPersistenceRuntime {
+  pieFindingVerifications?: PieFindingVerifications;
   runtimeDeliveries: RuntimeDeliveryRepository;
   missionRepository: MissionRepository;
   runtimeArtifacts: ArtifactRepository;
@@ -245,6 +248,7 @@ export function createApiPersistenceRuntime(
   });
 
   return {
+    pieFindingVerifications: createPostgresPieFindingVerifications(query),
     runtimeDeliveries: createPostgresRuntimeDeliveries(query),
     missionRepository: createPostgresMissionRepository(query, deliveryMappings),
     runtimeArtifacts: createPostgresRuntimeArtifacts(query),

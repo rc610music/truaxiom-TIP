@@ -43,4 +43,5 @@ export * from "./runtimeWakeTransport";
 export * from "./runtimeHeartbeatLoop";
 export * from "./independentVerification";
 
-export { proposePieRecovery, type RecoveryBinding } from "./pieRuntimeBridge";
+export * from "./pieRuntimeBridge";
+export * from "./pieHealthRecovery";
