@@ -2,6 +2,9 @@ import { readFile, readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import {
   MissionRuntime,
+  pieRecoveryProjection,
+  artifactHash,
+  type PieFindingVerifications,
   RuntimeError,
   runtimeWakeSummary,
   runtimeExecutiveNotice,
@@ -45,6 +48,7 @@ export function createMissionRuntimeApi(
   auth: OperatorAuthConfig,
   artifacts?: ArtifactRepository,
   deliveries?: RuntimeDeliveryRepository,
+  pieVerifications?: PieFindingVerifications,
 ) {
   return async (
     request: RuntimeApiRequest,
@@ -60,9 +64,20 @@ export function createMissionRuntimeApi(
       };
     const principal = { actor: auth.actor, role: "operator" as const };
     try {
-      if (request.path === "/v1/runtime/orchestration" && request.method === "GET") {
+      if (
+        request.path === "/v1/runtime/orchestration" &&
+        request.method === "GET"
+      ) {
         const records = await runtime.repository.list();
-        return { status: 200, body: { source: runtime.repository.source, missions: records.map(runtimeWakeSummary), notices: records.map(runtimeExecutiveNotice).filter(Boolean), notification_delivery: "NOT_CONFIGURED" } };
+        return {
+          status: 200,
+          body: {
+            source: runtime.repository.source,
+            missions: records.map(runtimeWakeSummary),
+            notices: records.map(runtimeExecutiveNotice).filter(Boolean),
+            notification_delivery: "NOT_CONFIGURED",
+          },
+        };
       }
       if (
         request.path === "/v1/runtime/deliveries" &&
@@ -128,6 +143,44 @@ export function createMissionRuntimeApi(
             body: await runtime.create(request.body, principal),
           };
       }
+      const piePath = request.path.match(
+        /^\/v1\/runtime\/missions\/([^/]+)\/pie$/,
+      );
+      if (piePath && request.method === "GET") {
+        if (!pieVerifications)
+          throw new RuntimeError(
+            503,
+            "PIE verification persistence is not configured",
+          );
+        let id: string;
+        try {
+          id = decodeURIComponent(piePath[1]);
+        } catch {
+          throw new RuntimeError(400, "Invalid mission path encoding");
+        }
+        const record = await runtime.get(id);
+        if (record.mission.capability_id !== "non_prod_health_remediation")
+          throw new RuntimeError(404, "Not a PIE health recovery mission");
+        const verification = await pieVerifications.get(id);
+        const observation = verification
+          ? await artifacts?.get(verification.observation_sha256)
+          : null;
+        if (
+          verification &&
+          (!observation ||
+            observation.mission_id !== id ||
+            observation.kind !== "pie-health-observation" ||
+            artifactHash(observation) !== verification.observation_sha256)
+        )
+          throw new RuntimeError(
+            409,
+            "Independent observation unavailable or altered",
+          );
+        return {
+          status: 200,
+          body: { ...pieRecoveryProjection(record, verification), observation },
+        };
+      }
       const evidencePath = request.path.match(
         /^\/v1\/runtime\/missions\/([^/]+)\/artifacts\/([a-f0-9]{64})$/,
       );
@@ -178,4 +231,3 @@ export function createMissionRuntimeApi(
     }
   };
 }
-

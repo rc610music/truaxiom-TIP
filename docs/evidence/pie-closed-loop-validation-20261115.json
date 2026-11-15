@@ -1,0 +1,38 @@
+{
+  "scope": "PIE Closed Loop 001 local integration",
+  "status": "LOCAL_INTEGRATION_PASSED_LIVE_ACCEPTANCE_PENDING",
+  "base_commit": "1edcbed199e8d285fde6308d286c84a5169dd99c",
+  "upstream_pie_commit": "83743a052e557e93a1444b25a32b7ff5a2128b19",
+  "tests": {
+    "selected_runtime_suites": 135,
+    "passed": 135,
+    "failed": 0,
+    "new_closed_loop_tests": 11,
+    "existing_bridge_tests": 11,
+    "runner": "node --import tsx --test --test-concurrency=1"
+  },
+  "checks": {
+    "workspace_typechecks": "PASS",
+    "foundation_ci_and_mission_control_preview_build": "PASS",
+    "runtime_001_taxis": "PASS",
+    "api_build": "PASS",
+    "diff_check": "PASS"
+  },
+  "initial_parallel_attempt": {
+    "status": "Two test file processes exited early",
+    "files": [
+      "scripts/test-pie-closed-loop.mjs",
+      "scripts/test-runtime-delivery.mjs"
+    ],
+    "cause": "Not established; all 135 tests passed when rerun sequentially"
+  },
+  "proof": "docs/evidence/pie-closed-loop-local-20261115.json",
+  "limits": [
+    "Accelerated observation clock; no wall-clock PT30M soak",
+    "Simulated DOT approval",
+    "In-process ledger adapter; no live Agent Comms HTTP acceptance",
+    "Fixture-only recovery adapter",
+    "No deployed PIE composition, hosted migration, dispatch activation or deployment",
+    "Read-only API integrated; Command Center frontend wiring pending"
+  ]
+}

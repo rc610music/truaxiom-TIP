@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "mission": "PIE Closed Loop 001 / Issue #16",
+  "scope": "First development pass: existing PIE health episode to existing TIP governed mission proposal",
+  "status": "PARTIAL_NOT_END_TO_END",
+  "base_commit": "d171d88d75067dea668389ac3d27a2f904e0b9ed",
+  "upstream_pie_commit": "83743a052e557e93a1444b25a32b7ff5a2128b19",
+  "upstream_fixture": "scripts/fixtures/upstream-pie-contract.ts (test-only pinned upstream source)",
+  "proven": [
+    "Real upstream PIE reconciliation: first failure watch, two failures finding, persistence threshold before proposal",
+    "One deterministic mission per finding; repeated proposal does not duplicate work",
+    "Existing runtime permission request gates recovery; only DOT operator can approve remediation",
+    "Rejection cancels mission and blocks execution claim",
+    "Proposal and rejection survive disk-backed PGlite close/reopen through existing Postgres mission adapter",
+    "Production, target/capability mismatch, inactive binding, stale observation and registration drift blocked"
+  ],
+  "validation": {
+    "runtime_suites_including_bridge": {
+      "passed": 124,
+      "failed": 0
+    },
+    "new_bridge_tests": 11,
+    "workspace_typechecks": "PASS",
+    "runtime_001_taxis": "PASS",
+    "foundation_contracts": "PASS",
+    "diff_check": "PASS"
+  },
+  "not_proven": [
+    "No live PIE server composition invokes this bridge yet",
+    "No production catalog recovery capability or worker installed; fixture catalog is test-only",
+    "No real recovery operation executed",
+    "No Agent Comms recovery publication or fresh post-recovery health verification",
+    "No VERIFIED_RESOLVED or STILL_FAILING lifecycle persistence/read projection added",
+    "No live deployment or complete Issue #16 acceptance"
+  ],
+  "next_step": "Wire the trusted PIE store plus Policy/Registry binding loader into the bridge on the isolated development composition; add a narrowly bound disposable target recovery worker and fresh PIE verification. Keep dispatch disabled until that path and binding are proven."
+}
